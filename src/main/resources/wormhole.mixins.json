@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.wormhole.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [],
+  "client": [
+    "client.CameraInvokerMixin",
+    "client.GameRendererAccessorMixin",
+    "client.LevelRendererAccessorMixin",
+    "client.MinecraftAccessorMixin",
+    "client.MinecraftRenderTargetMixin",
+    "client.stencil.GlBackendMixin",
+    "client.stencil.GlConstMixin",
+    "client.stencil.GlStateManagerMixin",
+    "client.stencil.StencilFboMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
