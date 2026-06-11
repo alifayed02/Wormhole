@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "wormhole",
+  "version": "1.0.0",
+  "name": "Wormhole",
+  "description": "Diamond-frame seamless portals, ported from ImmersivePortals/SeamlessPortals.",
+  "authors": [],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.wormhole.Wormhole"],
+    "client": ["com.wormhole.client.WormholeClient"]
+  },
+  "mixins": ["wormhole.mixins.json"],
+  "depends": {
+    "fabric-api": "*",
+    "fabricloader": ">=0.19.3",
+    "java": ">=25",
+    "minecraft": "*"
+  }
+}
