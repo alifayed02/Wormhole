@@ -3,7 +3,9 @@
   "minVersion": "0.8",
   "package": "com.wormhole.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "LevelChunkMixin"
+  ],
   "client": [],
   "injectors": {
     "defaultRequire": 1
