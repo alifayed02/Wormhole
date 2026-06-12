@@ -65,15 +65,13 @@ public final class PortalEnd {
     }
 
     /**
-     * Radius of the spherical mouth: the largest sphere inscribed in the {@code width x height}
-     * opening, so the orb fits cleanly within the declared footprint.
+     * True if the segment {@code from -> to} crosses this end's center plane within the opening
+     * rectangle (small lateral/vertical slack so a body brushing the edge still counts). This is
+     * the teleport trigger: segment-based, so it cannot tunnel at any speed, and it fires exactly
+     * at the visual plane — where the thickness-protected portal surface fills the screen and the
+     * world swap is invisible.
      */
-    public double getRadius() {
-        return Math.min(this.width, this.height) / 2.0;
-    }
-
-    /** True if the segment {@code from -> to} crosses this end's plane within the mouth's radius. */
-    public boolean intersectsMovement(Vec3 from, Vec3 to) {
+    public boolean crossesPlane(Vec3 from, Vec3 to) {
         double planeCoord = this.axis == Direction.Axis.X ? this.center.z : this.center.x;
         double fromCoord = this.axis == Direction.Axis.X ? from.z : from.x;
         double toCoord = this.axis == Direction.Axis.X ? to.z : to.x;
@@ -89,22 +87,11 @@ public final class PortalEnd {
             return false;
         }
         Vec3 hit = from.lerp(to, t);
-        return this.isWithinMouth(hit);
-    }
-
-    private boolean isWithinMouth(Vec3 point) {
-        double dy = point.y - this.center.y;
-        double dLat = this.axis == Direction.Axis.X ? point.x - this.center.x : point.z - this.center.z;
-        double r = this.getRadius();
-        return dy * dy + dLat * dLat <= r * r;
-    }
-
-    public Vec3 getIntersectionPoint(Vec3 from, Vec3 to) {
-        double planeCoord = this.axis == Direction.Axis.X ? this.center.z : this.center.x;
-        double fromCoord = this.axis == Direction.Axis.X ? from.z : from.x;
-        double toCoord = this.axis == Direction.Axis.X ? to.z : to.x;
-        double t = (planeCoord - fromCoord) / (toCoord - fromCoord);
-        return from.lerp(to, t);
+        double slack = 0.35;
+        double lat = this.axis == Direction.Axis.X ? hit.x : hit.z;
+        double latOrigin = this.axis == Direction.Axis.X ? this.origin.getX() : this.origin.getZ();
+        return lat >= latOrigin - slack && lat <= latOrigin + this.width + slack
+            && hit.y >= this.origin.getY() - 0.3 && hit.y <= this.origin.getY() + this.height;
     }
 
     // ----- frame geometry (used by detection and destruction) -----

@@ -13,9 +13,10 @@ import net.minecraft.world.phys.Vec3;
  * Seamless client-side teleport, ported from SeamlessPortals' per-tick volume model
  * ({@code LocalPlayerMixin} + {@code SeamlessClientTeleport.performCrossing}, same-dimension branch).
  *
- * <p><b>Trigger:</b> the player's feet are inside a portal end's volume ({@link PortalEnd#containsPoint}),
- * checked once per client tick at tick start (before the player's own movement updates {@code xo},
- * so the render interpolates cleanly from the new position with no smear).
+ * <p><b>Trigger:</b> the player's feet segment (last tick -> this tick) crosses a portal end's
+ * CENTER PLANE within the opening ({@link PortalEnd#crossesPlane}), checked once per client tick
+ * at tick start. Segment-based = tunneling-safe at any speed, and firing at the visual plane means
+ * the swap happens while the thickness-protected portal surface fills the screen (Lague's model).
  *
  * <p><b>Anti-ping-pong:</b> after a crossing, no further crossing fires until the player has left
  * EVERY portal volume. The translation teleport lands you inside the destination volume at the
@@ -33,40 +34,48 @@ public final class ClientPortalTeleport {
         return justTeleported;
     }
 
+    /** The player's feet at the previous tick; segment start for the plane-crossing test. */
+    private static Vec3 lastFeet;
+
     /** Driven from {@code ClientTickEvents.START_CLIENT_TICK}. */
     public static void onClientTick(Minecraft mc) {
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
             justTeleported = false;
+            lastFeet = null;
             return;
         }
+        Vec3 feet = player.position();
         List<PortalPair> pairs = ClientPortalStore.linkedPairsIn(mc.level.dimension());
         if (pairs.isEmpty()) {
             justTeleported = false;
+            lastFeet = feet;
             return;
         }
 
-        WormholeDebug.tickSample(player.position(), player.getDeltaMovement(), player.getYRot(),
+        WormholeDebug.tickSample(feet, player.getDeltaMovement(), player.getYRot(),
             isInAnyPortal(player, pairs), justTeleported);
 
         if (justTeleported) {
             if (!isInAnyPortal(player, pairs)) {
                 justTeleported = false;
             }
+            lastFeet = feet;
             return;
         }
 
-        Vec3 feet = player.position();
+        Vec3 from = lastFeet == null ? feet : lastFeet;
         for (PortalPair pair : pairs) {
-            if (pair.getA().containsPoint(feet)) {
+            if (pair.getA().crossesPlane(from, feet)) {
                 performCrossing(player, pair, pair.getA(), true);
                 return;
             }
-            if (pair.getB().containsPoint(feet)) {
+            if (pair.getB().crossesPlane(from, feet)) {
                 performCrossing(player, pair, pair.getB(), false);
                 return;
             }
         }
+        lastFeet = feet;
     }
 
     private static boolean isInAnyPortal(LocalPlayer player, List<PortalPair> pairs) {
@@ -94,6 +103,8 @@ public final class ClientPortalTeleport {
         player.setXRot(destPitch);
 
         justTeleported = true;
+        // Next tick's segment must start in the destination world, not span the teleport.
+        lastFeet = destPos;
         // Carries the client's source position + predicted destination so the server can log how
         // far its own (possibly stale-position) computation diverges — see [wh-srv] in the log.
         ClientPlayNetworking.send(new ClientCrossedPayload(pair.getId(), isEndA, srcPos, destPos));

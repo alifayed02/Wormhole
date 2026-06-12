@@ -68,7 +68,10 @@ public final class PortalContextSwitch {
     /** Lengyel's oblique near-plane degenerates to a sliver as the camera approaches the plane.
      *  Within this perpendicular distance we skip the clip (the opening fills the view in the final
      *  approach anyway, so the minor near-side bleed is not visible). */
-    private static final double MIN_CLIP_PERP = 0.5;
+    // Skip the oblique clip only in a thin dead zone where the plane degenerates against the
+    // camera (Lague uses 0.2; the [wh-view] traces showed 0.5 left a half-block bleed window —
+    // the thickness-protected portal surface covers what remains).
+    private static final double MIN_CLIP_PERP = 0.075;
 
     /** [wh-view] diagnostics: oblique near-clip state of the most recent destination render. */
     public static volatile boolean lastObliqueApplied;
@@ -192,8 +195,8 @@ public final class PortalContextSwitch {
                 + dn.z * (destCamPos.z - dc.z));
             lastObliquePerp = perp;
             if (perp > MIN_CLIP_PERP) {
-                lastObliqueApplied = true;
-                applyObliqueNearPlane(destCameraState.projectionMatrix, virtualCamera, destCamPos, dc, dn);
+                lastObliqueApplied =
+                    applyObliqueNearPlane(destCameraState.projectionMatrix, virtualCamera, destCamPos, dc, dn);
             }
         }
         if (destCameraState.entityRenderState != null) {
