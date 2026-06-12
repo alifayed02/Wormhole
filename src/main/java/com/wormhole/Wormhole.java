@@ -30,11 +30,18 @@ public class Wormhole implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     /**
-     * Master switch for the teleport EFFECT. When false, entering a mouth is still detected
-     * (the crossing logic runs and logs) but the traveller is not actually moved — flip to true
-     * to restore real teleportation.
+     * Master switch for the PLAYER teleport effect. When false, entering a mouth is still detected
+     * (the crossing logic runs and logs) but the player is not actually moved. Phase 1 traversal:
+     * true. Gates {@code ClientPortalTeleport} (client predict) and {@code PortalCrossingHandler}
+     * (server reconciliation).
      */
-    public static final boolean TELEPORT_ENABLED = false;
+    public static final boolean TELEPORT_ENABLED = true;
+
+    /**
+     * Switch for NON-PLAYER entity crossing (items, mobs, projectiles). Off in Phase 1 (player-only);
+     * gates {@code ServerEntityCrossing}. Flip on in a later phase once entity crossing is tested.
+     */
+    public static final boolean ENTITY_TELEPORT_ENABLED = false;
 
     @Override
     public void onInitialize() {

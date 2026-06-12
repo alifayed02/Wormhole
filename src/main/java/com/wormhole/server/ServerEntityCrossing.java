@@ -63,7 +63,7 @@ public final class ServerEntityCrossing {
             Vec3 destVel = pair.transformVelocity(source, entity.getDeltaMovement());
             float destYaw = pair.transformYaw(source, entity.getYRot());
             // Entry is detected and bookkept; the actual move only happens when enabled.
-            if (Wormhole.TELEPORT_ENABLED) {
+            if (Wormhole.ENTITY_TELEPORT_ENABLED) {
                 entity.teleportTo(level, destPos.x, destPos.y, destPos.z, Set.of(), destYaw, entity.getXRot(), false);
                 entity.setDeltaMovement(destVel);
             }
