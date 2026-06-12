@@ -10,6 +10,7 @@
     "client.CameraInvokerMixin",
     "client.ClientPacketListenerDebugMixin",
     "client.GameRendererAccessorMixin",
+    "client.GameRendererBobMixin",
     "client.LevelRendererAccessorMixin",
     "client.MinecraftAccessorMixin",
     "client.MinecraftRenderTargetMixin",

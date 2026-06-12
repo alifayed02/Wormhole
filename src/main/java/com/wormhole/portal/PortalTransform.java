@@ -8,8 +8,16 @@ import net.minecraft.world.phys.Vec3;
  *
  * <p>Same-dimension port of SeamlessPortals' {@code PortalTransform} (the nether coordinate-scale
  * path is removed). Works in a local frame {@code (depth, width, height)} where depth is the
- * portal-normal axis. The render transform keeps depth; the teleport transform negates it (so you
- * come out the far side facing forward).
+ * portal-normal axis.
+ *
+ * <p>TELEPORT == RENDER == pure translation between the two local frames. The reference negated
+ * depth in its teleport transform, but its portals carry per-end orientation (linked ends face
+ * each other), where negation in oriented frames means "continue forward". Our ends have no
+ * facing (normal is fixed by the axis), so negation here MIRRORS the entity through the plane:
+ * momentum reverses relative to facing and the world jumps by 2x the crossing depth — measured
+ * live as the "bounce" (see [wh-cross] traces, 2026-06-11). With translation, the teleport lands
+ * exactly where the see-through view said you would be, at any depth; the entity then traverses
+ * the destination volume and exits the far side while suppress-until-exit holds.
  */
 public final class PortalTransform {
     private PortalTransform() {
@@ -28,16 +36,15 @@ public final class PortalTransform {
     }
 
     /**
-     * Teleport transform (port of SeamlessPortals' {@code transformTeleportPoint}). The depth is
-     * NEGATED: the entity emerges on the mirror side of the destination, which is consistent with
-     * what the portal showed (the render keeps +depth, but at the crossing the entity is on the
-     * plane so depth ~ 0 and the two agree). Ping-pong is prevented by the volume-exit suppression in
-     * {@code ClientPortalTeleport}, not by dropping the negation.
+     * Teleport transform: identical mapping to {@link #transformPoint} (pure translation), so the
+     * entity lands exactly where the see-through render said it would, at any crossing depth.
+     * Ping-pong is prevented by the volume-exit suppression in {@code ClientPortalTeleport}: you
+     * land inside the destination volume and exit through its far side before re-arming.
      */
     public static Vec3 transformTeleportPoint(PortalEnd source, PortalEnd destination, Vec3 sourcePos) {
         Vec3 offset = sourcePos.subtract(source.getCenter());
         LocalCoords local = toLocal(source.getAxis(), offset);
-        Vec3 horizontal = fromLocal(destination.getAxis(), new LocalCoords(-local.depth(), local.width(), 0.0));
+        Vec3 horizontal = fromLocal(destination.getAxis(), new LocalCoords(local.depth(), local.width(), 0.0));
         double heightFromFloor = sourcePos.y() - source.getOrigin().getY();
         Vec3 destCenter = destination.getCenter();
         return new Vec3(destCenter.x() + horizontal.x(),
@@ -45,11 +52,11 @@ public final class PortalTransform {
                         destCenter.z() + horizontal.z());
     }
 
-    /** Velocity/direction transform (port of SeamlessPortals' {@code transformVector}): depth negated
-     *  so motion stays consistent with the negated position transform and the render camera. */
+    /** Velocity/direction transform: same translation mapping as the position transforms, so
+     *  momentum stays aligned with facing through a crossing (measured fix for the bounce). */
     public static Vec3 transformVector(PortalEnd source, PortalEnd destination, Vec3 vector) {
         LocalCoords local = toLocal(source.getAxis(), vector);
-        return fromLocal(destination.getAxis(), new LocalCoords(-local.depth(), local.width(), local.height()));
+        return fromLocal(destination.getAxis(), new LocalCoords(local.depth(), local.width(), local.height()));
     }
 
     /** Adjusts yaw by the axis difference between the two ends (0 or +/-90 degrees). */

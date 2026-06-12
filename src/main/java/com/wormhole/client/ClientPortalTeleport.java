@@ -18,8 +18,9 @@ import net.minecraft.world.phys.Vec3;
  * so the render interpolates cleanly from the new position with no smear).
  *
  * <p><b>Anti-ping-pong:</b> after a crossing, no further crossing fires until the player has left
- * EVERY portal volume. This is what makes the depth-negating transform safe (you land on the
- * mirror side, still inside the destination volume, and simply walk out).
+ * EVERY portal volume. The translation teleport lands you inside the destination volume at the
+ * same relative depth, moving forward; suppression holds while you traverse it and exit the far
+ * side.
  */
 public final class ClientPortalTeleport {
     private static boolean justTeleported;

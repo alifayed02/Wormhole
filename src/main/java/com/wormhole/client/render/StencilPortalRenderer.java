@@ -48,7 +48,8 @@ public final class StencilPortalRenderer {
         }
     }
 
-    private static long lastLightSnapshot = Long.MIN_VALUE;
+    // Not MIN_VALUE: gameTime - MIN_VALUE overflows negative and the rate-limiter never fires.
+    private static long lastLightSnapshot = -1000;
 
     /**
      * Lighting-bug instrumentation ({@code [wh-light]}): every 2 seconds while portals render,
