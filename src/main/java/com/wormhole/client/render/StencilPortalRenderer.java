@@ -21,7 +21,6 @@ public final class StencilPortalRenderer {
     private static final double RENDER_DISTANCE = 128.0;
     private static final int FALLBACK_COLOR_A = 0xFFFF00FF; // magenta
     private static final int FALLBACK_COLOR_B = 0xFF00FFFF; // cyan
-    private static final int BORDER_COLOR = 0xFF33CCFF; // light blue frame
 
     private StencilPortalRenderer() {
     }
@@ -133,8 +132,5 @@ public final class StencilPortalRenderer {
         PortalShapeRenderer.drawStencilQuad(src, camera);
         GL11.glStencilMask(0xFF);
         GL11.glDisable(GL11.GL_STENCIL_TEST);
-
-        // Visible frame around the opening.
-        PortalShapeRenderer.drawBorder(src, camera, BORDER_COLOR);
     }
 }
