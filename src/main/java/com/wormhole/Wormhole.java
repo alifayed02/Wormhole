@@ -1,9 +1,11 @@
 package com.wormhole;
 
 import com.wormhole.net.WormholePayloads;
+import com.wormhole.net.WormholePayloads.ClientCrossedPayload;
 import com.wormhole.net.WormholePayloads.RemovePairPayload;
 import com.wormhole.net.WormholePayloads.SyncPairsPayload;
 import com.wormhole.net.WormholePayloads.UpsertPairPayload;
+import com.wormhole.server.PortalCrossingHandler;
 import com.wormhole.portal.PortalManager;
 import com.wormhole.portal.PortalPair;
 import java.util.UUID;
@@ -30,6 +32,11 @@ public class Wormhole implements ModInitializer {
         WormholePayloads.registerTypes();
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> syncTo(handler.player));
+
+        // Client predicts crossings locally and reports them; the server applies them authoritatively.
+        ServerPlayNetworking.registerGlobalReceiver(ClientCrossedPayload.TYPE, (payload, context) ->
+            context.server().execute(() ->
+                PortalCrossingHandler.onClientCrossed(context.player(), payload.pairId(), payload.fromEndA())));
     }
 
     /** Sends the full portal state to a single player. */
