@@ -5,7 +5,11 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [
+    "client.CameraInvokerMixin",
     "client.ClientPacketListenerDebugMixin",
+    "client.GameRendererAccessorMixin",
+    "client.LevelRendererAccessorMixin",
+    "client.MinecraftAccessorMixin",
     "client.MinecraftRenderTargetMixin",
     "client.stencil.GlBackendMixin",
     "client.stencil.GlConstMixin",

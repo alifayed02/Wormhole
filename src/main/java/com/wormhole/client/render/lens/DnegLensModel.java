@@ -77,7 +77,7 @@ public final class DnegLensModel {
         /** {@code side}: +1 = near celestial sphere (ℓ→+∞), -1 = far / through the throat (ℓ→-∞). */
     }
 
-    private static final double L_FAR = 60.0;     // |ℓ| at which a ray is considered escaped
+    private static final double L_FAR = 80.0;     // |ℓ| at which a ray is considered escaped
     private static final double DT = 0.01;        // affine/time step (ρ units)
     private static final int MAX_STEPS = 200_000;
 
@@ -110,6 +110,30 @@ public final class DnegLensModel {
         }
         // Did not escape in MAX_STEPS — a ray winding at the throat: the Einstein ring.
         return new Trace((int) Math.signum(l), phi, true);
+    }
+
+    /**
+     * Asymptotic light-bending angle for an AROUND ray (impact parameter {@code b > ρ}, which turns
+     * back to the near side instead of going through). Equals {@code 2·∫ dφ − π}: the total azimuth
+     * a ray sweeps from infinity, in past the turning point at {@code r = b}, and back out to
+     * infinity, minus the straight-line π. → 0 for large {@code b} (no bending), → ∞ as {@code b → ρ}
+     * (the Einstein ring). {@code b} is in ρ units.
+     */
+    public double aroundDeflection(double b) {
+        if (b <= 1.0) {
+            return 0.0;
+        }
+        double lt = invertRadius(b);      // turning point: r(lt) = b on the near side
+        double dl = 0.002;
+        double half = 0.0;
+        for (double l = lt + dl * 0.5; l < L_FAR; l += dl) {
+            double r = radius(l);
+            double denomSq = 1.0 - (b * b) / (r * r);
+            if (denomSq > 1.0e-9) {
+                half += (b / (r * r)) / Math.sqrt(denomSq) * dl;
+            }
+        }
+        return 2.0 * half - Math.PI;
     }
 
     /** Derivatives [dl/dt, dphi/dt, dpl/dt] for the equatorial geodesic (Eqs A.7a,c,d with B²=b²). */
