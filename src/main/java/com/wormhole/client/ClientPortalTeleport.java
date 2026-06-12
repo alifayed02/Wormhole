@@ -14,9 +14,11 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Seamless client-side teleport for spherical mouths.
  *
- * <p><b>Trigger:</b> once per client tick, if the player's feet are inside a linked mouth's
- * sphere ({@link PortalEnd#containsPoint}), cross to the partner mouth. Entry is omnidirectional
- * — any approach direction works, matching a wormhole mouth.
+ * <p><b>Trigger:</b> once per client tick, the feet SEGMENT (last tick -> this tick) is tested
+ * against each linked mouth; a crossing fires when the segment passes through the mouth's throat
+ * centre — the diametral plane through the centre, within the radius (see {@link MouthCrossing}).
+ * This is the faithful {@code ℓ = 0} crossing point and is tunnelling-safe (a fast one-tick pass
+ * still fires). Entry is omnidirectional — any approach direction works, matching a wormhole mouth.
  *
  * <p><b>Crossing:</b> a pure translation (see {@link PortalPair#transformTeleportPosition}) lands
  * the player at the same offset inside the destination sphere, moving the same way.
@@ -50,7 +52,7 @@ public final class ClientPortalTeleport {
         List<PortalPair> pairs = ClientPortalStore.linkedPairsIn(mc.level.dimension());
         if (pairs.isEmpty()) {
             justTeleported = false;
-            lastFeet = feet;
+            lastFeet = null;
             return;
         }
 
