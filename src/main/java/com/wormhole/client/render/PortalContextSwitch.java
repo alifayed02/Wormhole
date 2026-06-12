@@ -88,7 +88,7 @@ public final class PortalContextSwitch {
         if (mc.level == null || mc.player == null) {
             return false;
         }
-        LevelRenderer destRenderer = PortalRenderer.getOrCreate(mc);
+        LevelRenderer destRenderer = PortalRenderer.getOrCreate(mc, destEnd);
         if (destRenderer == null) {
             return false;
         }

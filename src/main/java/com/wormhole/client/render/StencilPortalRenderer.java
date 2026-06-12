@@ -42,6 +42,15 @@ public final class StencilPortalRenderer {
         Vec3 camPos = camera.position();
         Vec3 look = mc.player.getViewVector(1.0F);
         maybeLightSnapshot(mc, pairs);
+
+        // Drop per-end renderers whose portal no longer exists.
+        java.util.Set<PortalEnd> activeEnds = new java.util.HashSet<>();
+        for (PortalPair pair : pairs) {
+            activeEnds.add(pair.getA());
+            activeEnds.add(pair.getB());
+        }
+        PortalRenderer.retainOnly(activeEnds);
+
         for (PortalPair pair : pairs) {
             renderPortal(pair, pair.getA(), camera, camPos, look, FALLBACK_COLOR_A);
             renderPortal(pair, pair.getB(), camera, camPos, look, FALLBACK_COLOR_B);

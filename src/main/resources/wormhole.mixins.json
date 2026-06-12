@@ -12,6 +12,7 @@
     "client.GameRendererAccessorMixin",
     "client.GameRendererBobMixin",
     "client.LevelRendererAccessorMixin",
+    "client.LevelRendererDirtyMixin",
     "client.MinecraftAccessorMixin",
     "client.MinecraftRenderTargetMixin",
     "client.stencil.GlBackendMixin",
