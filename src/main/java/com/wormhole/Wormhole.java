@@ -1,5 +1,6 @@
 package com.wormhole;
 
+import com.wormhole.command.WormholeCommand;
 import com.wormhole.net.WormholePayloads;
 import com.wormhole.net.WormholePayloads.ClientCrossedPayload;
 import com.wormhole.net.WormholePayloads.RemovePairPayload;
@@ -8,6 +9,7 @@ import com.wormhole.net.WormholePayloads.UpsertPairPayload;
 import com.wormhole.server.PortalCrossingHandler;
 import com.wormhole.server.ServerEntityCrossing;
 import com.wormhole.portal.PortalManager;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import com.wormhole.portal.PortalPair;
 import java.util.UUID;
@@ -41,6 +43,9 @@ public class Wormhole implements ModInitializer {
                 PortalCrossingHandler.onClientCrossed(context.player(), payload.pairId(), payload.fromEndA())));
 
         ServerTickEvents.END_SERVER_TICK.register(ServerEntityCrossing::onServerTick);
+
+        CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) ->
+            WormholeCommand.register(dispatcher));
     }
 
     /** Sends the full portal state to a single player. */
