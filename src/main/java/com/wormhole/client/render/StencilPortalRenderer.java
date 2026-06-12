@@ -148,5 +148,54 @@ public final class StencilPortalRenderer {
         PortalShapeRenderer.drawStencilQuad(src, camera);
         GL11.glStencilMask(0xFF);
         GL11.glDisable(GL11.GL_STENCIL_TEST);
+
+        logViewDiagnostics(pair, src, camPos, rendered);
+    }
+
+    // ----- [wh-view] diagnostics: the standing-in-the-portal double-view investigation -----
+
+    private static final java.util.Map<PortalEnd, String> lastViewState = new java.util.HashMap<>();
+    private static long lastViewLog = -1000;
+
+    /**
+     * Logs the camera's relation to a rendered end while within 2 blocks of its plane: signed
+     * perpendicular distance (negative = behind the plane relative to its normal), whether the
+     * camera is inside the trigger volume, whether the quad plane straddles the camera's near
+     * plane (|perp| < 0.1 -> the stencil mask only covers part of the screen), and whether the
+     * destination pass applied its oblique near-clip (skipped when the virtual camera is within
+     * MIN_CLIP_PERP of the destination plane -> back-side geometry bleeds into the view).
+     * Logged on every state change, else at most ~6/s.
+     */
+    private static void logViewDiagnostics(PortalPair pair, PortalEnd src, Vec3 camPos, boolean rendered) {
+        if (!com.wormhole.client.WormholeDebug.ENABLED) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        Vec3 n = src.getNormal();
+        Vec3 c = src.getCenter();
+        double perp = n.x * (camPos.x - c.x) + n.y * (camPos.y - c.y) + n.z * (camPos.z - c.z);
+        if (Math.abs(perp) > 2.0) {
+            lastViewState.remove(src);
+            return;
+        }
+        boolean inVolume = src.containsPoint(camPos);
+        boolean quadStraddlesNearPlane = Math.abs(perp) < 0.1;
+        String key = inVolume + "|" + rendered + "|" + quadStraddlesNearPlane + "|"
+            + PortalContextSwitch.lastObliqueApplied;
+        String prev = lastViewState.put(src, key);
+        long now = mc.level.getGameTime();
+        boolean changed = !key.equals(prev);
+        if (!changed && now - lastViewLog < 3) {
+            return;
+        }
+        lastViewLog = now;
+        com.wormhole.client.WormholeDebug.log(String.format(java.util.Locale.ROOT,
+            "[wh-view]%s end=%s perp=%+.3f inVol=%b quadAtNearPlane=%b rendered=%b "
+                + "obliqueClip=%b destClipPerp=%.3f suppressed=%b cam=(%.3f,%.3f,%.3f)",
+            changed ? " CHANGE" : "", src == pair.getA() ? "A" : "B", perp, inVolume,
+            quadStraddlesNearPlane, rendered,
+            PortalContextSwitch.lastObliqueApplied, PortalContextSwitch.lastObliquePerp,
+            com.wormhole.client.ClientPortalTeleport.isSuppressed(),
+            camPos.x, camPos.y, camPos.z));
     }
 }

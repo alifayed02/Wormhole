@@ -28,6 +28,11 @@ public final class ClientPortalTeleport {
     private ClientPortalTeleport() {
     }
 
+    /** Debug ({@code [wh-view]}): whether re-crossing is currently suppressed. */
+    public static boolean isSuppressed() {
+        return justTeleported;
+    }
+
     /** Driven from {@code ClientTickEvents.START_CLIENT_TICK}. */
     public static void onClientTick(Minecraft mc) {
         LocalPlayer player = mc.player;

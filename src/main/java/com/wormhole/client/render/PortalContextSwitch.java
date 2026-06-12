@@ -70,6 +70,10 @@ public final class PortalContextSwitch {
      *  approach anyway, so the minor near-side bleed is not visible). */
     private static final double MIN_CLIP_PERP = 0.5;
 
+    /** [wh-view] diagnostics: oblique near-clip state of the most recent destination render. */
+    public static volatile boolean lastObliqueApplied;
+    public static volatile double lastObliquePerp = -1.0;
+
     private static TextureTarget secondaryFbo;
     private static GpuBuffer projGpuBuffer;
     private static GpuBuffer fogGpuBuffer;
@@ -178,13 +182,17 @@ public final class PortalContextSwitch {
         destCameraState.projectionMatrix.set(mainCameraState.projectionMatrix);
         // Oblique near-plane clip: tilt the near plane onto the destination portal plane so geometry
         // between the virtual camera and the portal doesn't bleed into the view.
+        lastObliqueApplied = false;
+        lastObliquePerp = -1.0;
         if (ENABLE_OBLIQUE_CLIP) {
             Vec3 dn = destEnd.getNormal();
             Vec3 dc = destEnd.getCenter();
             double perp = Math.abs(dn.x * (destCamPos.x - dc.x)
                 + dn.y * (destCamPos.y - dc.y)
                 + dn.z * (destCamPos.z - dc.z));
+            lastObliquePerp = perp;
             if (perp > MIN_CLIP_PERP) {
+                lastObliqueApplied = true;
                 applyObliqueNearPlane(destCameraState.projectionMatrix, virtualCamera, destCamPos, dc, dn);
             }
         }
