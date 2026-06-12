@@ -36,10 +36,12 @@ public final class MouthCrossing {
             return false;
         }
         double t = -dotP / len2; // closest-approach parameter, guaranteed in [0,1] by the test above
-        double clx = px + t * dx - cx;
-        double cly = py + t * dy - cy;
-        double clz = pz + t * dz - cz;
-        double perp2 = clx * clx + cly * cly + clz * clz;
+        // Offset from the closest point on the path to the centre — its length is the perpendicular
+        // distance from C to the line; within r means the path went through the ball, not past it.
+        double offX = px + t * dx - cx;
+        double offY = py + t * dy - cy;
+        double offZ = pz + t * dz - cz;
+        double perp2 = offX * offX + offY * offY + offZ * offZ;
         return perp2 < r * r;
     }
 
@@ -74,7 +76,8 @@ public final class MouthCrossing {
         // Vec3, so it cannot run standalone; this asserts the maths the renderer/teleport rely on).
         double[] dest = translate(/*src*/ 10, 64, -5, /*C_A*/ 10, 64, -5, /*C_B*/ 200, 70, 200);
         failures += check("translate-centre-to-centre",
-            dest[0] == 200 && dest[1] == 70 && dest[2] == 200, true);
+            Math.abs(dest[0] - 200) < 1e-9 && Math.abs(dest[1] - 70) < 1e-9
+                && Math.abs(dest[2] - 200) < 1e-9, true);
         double[] dest2 = translate(10.3, 64, -5, 10, 64, -5, 200, 70, 200);
         failures += check("translate-keeps-offset",
             Math.abs(dest2[0] - 200.3) < 1e-9 && dest2[1] == 70 && dest2[2] == 200, true);
