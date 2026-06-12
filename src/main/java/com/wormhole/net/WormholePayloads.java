@@ -10,6 +10,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Server->client: full sync on join plus upsert/remove deltas on registry change.
@@ -105,8 +106,13 @@ public final class WormholePayloads {
         }
     }
 
-    /** Client -> server: the local player predicted a crossing of {@code pairId} from the given end. */
-    public record ClientCrossedPayload(UUID pairId, boolean fromEndA) implements CustomPacketPayload {
+    /**
+     * Client -> server: the local player predicted a crossing of {@code pairId} from the given end.
+     * Also carries the client's source position and predicted destination — debug instrumentation
+     * so the server can quantify how far its own computation diverges (the bounce investigation).
+     */
+    public record ClientCrossedPayload(UUID pairId, boolean fromEndA, Vec3 clientSrcPos, Vec3 clientPredictedDest)
+        implements CustomPacketPayload {
         public static final Type<ClientCrossedPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath(Wormhole.MOD_ID, "client_crossed"));
 
@@ -114,12 +120,24 @@ public final class WormholePayloads {
             CustomPacketPayload.codec(ClientCrossedPayload::write, ClientCrossedPayload::new);
 
         private ClientCrossedPayload(FriendlyByteBuf buf) {
-            this(buf.readUUID(), buf.readBoolean());
+            this(buf.readUUID(), buf.readBoolean(), readVec3(buf), readVec3(buf));
         }
 
         private void write(FriendlyByteBuf buf) {
             buf.writeUUID(this.pairId);
             buf.writeBoolean(this.fromEndA);
+            writeVec3(buf, this.clientSrcPos);
+            writeVec3(buf, this.clientPredictedDest);
+        }
+
+        private static Vec3 readVec3(FriendlyByteBuf buf) {
+            return new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
+        }
+
+        private static void writeVec3(FriendlyByteBuf buf, Vec3 v) {
+            buf.writeDouble(v.x);
+            buf.writeDouble(v.y);
+            buf.writeDouble(v.z);
         }
 
         @Override

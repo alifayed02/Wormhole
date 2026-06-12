@@ -59,6 +59,18 @@ public final class PortalRenderer {
         }
     }
 
+    /** Debug ({@code [wh-light]}): visible-section count of the dedicated renderer, or -1 if absent. */
+    public static int debugVisibleSections() {
+        if (renderer == null) {
+            return -1;
+        }
+        try {
+            return ((LevelRendererAccessorMixin) renderer).wormhole$getVisibleSections().size();
+        } catch (Exception e) {
+            return -2;
+        }
+    }
+
     public static void dispose() {
         if (renderer != null) {
             try {

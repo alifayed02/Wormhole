@@ -40,7 +40,8 @@ public class Wormhole implements ModInitializer {
         // Client predicts crossings locally and reports them; the server applies them authoritatively.
         ServerPlayNetworking.registerGlobalReceiver(ClientCrossedPayload.TYPE, (payload, context) ->
             context.server().execute(() ->
-                PortalCrossingHandler.onClientCrossed(context.player(), payload.pairId(), payload.fromEndA())));
+                PortalCrossingHandler.onClientCrossed(context.player(), payload.pairId(), payload.fromEndA(),
+                    payload.clientSrcPos(), payload.clientPredictedDest())));
 
         ServerTickEvents.END_SERVER_TICK.register(ServerEntityCrossing::onServerTick);
 

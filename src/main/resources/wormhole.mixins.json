@@ -8,6 +8,7 @@
   ],
   "client": [
     "client.CameraInvokerMixin",
+    "client.ClientPacketListenerDebugMixin",
     "client.GameRendererAccessorMixin",
     "client.LevelRendererAccessorMixin",
     "client.MinecraftAccessorMixin",

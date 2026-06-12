@@ -41,23 +41,46 @@ public final class StencilPortalRenderer {
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 camPos = camera.position();
         Vec3 look = mc.player.getViewVector(1.0F);
-        if (com.wormhole.client.WormholeDebug.ENABLED) {
-            double best = Double.MAX_VALUE;
-            for (PortalPair p : pairs) {
-                best = Math.min(best, Math.min(p.getA().getCenter().distanceTo(camPos),
-                    p.getB().getCenter().distanceTo(camPos)));
-            }
-            if (best < 6.0) {
-                com.wormhole.client.WormholeDebug.log(String.format(
-                    "F%d RCAM=(%.3f,%.3f,%.3f) yaw=%.1f pitch=%.1f",
-                    com.wormhole.client.WormholeDebug.frame, camPos.x, camPos.y, camPos.z,
-                    camera.yRot(), camera.xRot()));
-            }
-        }
+        maybeLightSnapshot(mc, pairs);
         for (PortalPair pair : pairs) {
             renderPortal(pair, pair.getA(), camera, camPos, look, FALLBACK_COLOR_A);
             renderPortal(pair, pair.getB(), camera, camPos, look, FALLBACK_COLOR_B);
         }
+    }
+
+    private static long lastLightSnapshot = Long.MIN_VALUE;
+
+    /**
+     * Lighting-bug instrumentation ({@code [wh-light]}): every 2 seconds while portals render,
+     * log the client light engine's block/sky values at each end's opening plus the dedicated
+     * destination renderer's state. If the end the bug shows in has normal light values here,
+     * the problem is in the destination-view rendering (lightmap/fog/section baking), not the
+     * light data itself.
+     */
+    private static void maybeLightSnapshot(Minecraft mc, List<PortalPair> pairs) {
+        if (!com.wormhole.client.WormholeDebug.ENABLED) {
+            return;
+        }
+        long now = mc.level.getGameTime();
+        if (now - lastLightSnapshot < 40) {
+            return;
+        }
+        lastLightSnapshot = now;
+        for (PortalPair pair : pairs) {
+            com.wormhole.client.WormholeDebug.log(String.format(
+                "[wh-light] t=%d pair=%s A{%s} B{%s} skyDarken=%d dedicatedSections=%d",
+                now, pair.getId().toString().substring(0, 8),
+                lightAt(mc, pair.getA()), lightAt(mc, pair.getB()),
+                mc.level.getSkyDarken(), PortalRenderer.debugVisibleSections()));
+        }
+    }
+
+    private static String lightAt(Minecraft mc, PortalEnd end) {
+        net.minecraft.core.BlockPos pos = net.minecraft.core.BlockPos.containing(end.getCenter());
+        return String.format("center=%s block=%d sky=%d",
+            pos.toShortString(),
+            mc.level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos),
+            mc.level.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos));
     }
 
     private static void renderPortal(PortalPair pair, PortalEnd src, Camera camera, Vec3 camPos, Vec3 look, int fallbackColor) {
@@ -71,23 +94,6 @@ public final class StencilPortalRenderer {
             return;
         }
         PortalEnd dest = pair.linkFor(src);
-
-        if (com.wormhole.client.WormholeDebug.ENABLED) {
-            net.minecraft.core.BlockPos o = src.getOrigin();
-            boolean axisX = src.getAxis() == net.minecraft.core.Direction.Axis.X;
-            double perp = axisX ? (camPos.z - src.getCenter().z) : (camPos.x - src.getCenter().x);
-            boolean latInside = axisX
-                ? (camPos.x >= o.getX() && camPos.x <= o.getX() + src.getWidth()
-                   && camPos.y >= o.getY() && camPos.y <= o.getY() + src.getHeight())
-                : (camPos.z >= o.getZ() && camPos.z <= o.getZ() + src.getWidth()
-                   && camPos.y >= o.getY() && camPos.y <= o.getY() + src.getHeight());
-            if (Math.abs(perp) < 1.5) {
-                com.wormhole.client.WormholeDebug.log(String.format(
-                    "STENCIL F%d %s perpDist=%.3f latInside=%b cam=(%.3f,%.3f,%.3f)",
-                    com.wormhole.client.WormholeDebug.frame, (src == pair.getA() ? "A" : "B"),
-                    perp, latInside, camPos.x, camPos.y, camPos.z));
-            }
-        }
 
         GL11.glEnable(GL11.GL_STENCIL_TEST);
 

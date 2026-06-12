@@ -40,6 +40,9 @@ public final class ClientPortalTeleport {
             return;
         }
 
+        WormholeDebug.tickSample(player.position(), player.getDeltaMovement(), player.getYRot(),
+            isInAnyPortal(player, pairs), justTeleported);
+
         if (justTeleported) {
             if (!isInAnyPortal(player, pairs)) {
                 justTeleported = false;
@@ -72,9 +75,11 @@ public final class ClientPortalTeleport {
 
     private static void performCrossing(LocalPlayer player, PortalPair pair, PortalEnd src, boolean isEndA) {
         Vec3 srcPos = player.position();
+        Vec3 srcVel = player.getDeltaMovement();
+        float srcYaw = player.getYRot();
         Vec3 destPos = pair.transformTeleportPosition(src, srcPos);
-        Vec3 destVel = pair.transformVelocity(src, player.getDeltaMovement());
-        float destYaw = pair.transformYaw(src, player.getYRot());
+        Vec3 destVel = pair.transformVelocity(src, srcVel);
+        float destYaw = pair.transformYaw(src, srcYaw);
         float destPitch = player.getXRot();
 
         player.setPos(destPos.x, destPos.y, destPos.z);
@@ -83,13 +88,11 @@ public final class ClientPortalTeleport {
         player.setXRot(destPitch);
 
         justTeleported = true;
-        ClientPlayNetworking.send(new ClientCrossedPayload(pair.getId(), isEndA));
+        // Carries the client's source position + predicted destination so the server can log how
+        // far its own (possibly stale-position) computation diverges — see [wh-srv] in the log.
+        ClientPlayNetworking.send(new ClientCrossedPayload(pair.getId(), isEndA, srcPos, destPos));
 
-        if (WormholeDebug.ENABLED) {
-            WormholeDebug.log(String.format(
-                "CROSS end%s src=(%.3f,%.3f,%.3f) -> dest=(%.3f,%.3f,%.3f) vel=(%.3f,%.3f,%.3f) yaw=%.1f",
-                isEndA ? "A" : "B", srcPos.x, srcPos.y, srcPos.z,
-                destPos.x, destPos.y, destPos.z, destVel.x, destVel.y, destVel.z, destYaw));
-        }
+        WormholeDebug.crossing(src, pair.linkFor(src), isEndA,
+            srcPos, destPos, srcVel, destVel, srcYaw, destYaw);
     }
 }
