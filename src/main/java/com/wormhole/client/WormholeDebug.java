@@ -94,10 +94,10 @@ public final class WormholeDebug {
         double forwardDotVel = forward.x * destVel.x + forward.z * destVel.z;
 
         Wormhole.LOGGER.info(String.format(Locale.ROOT,
-            "[wh-cross] CROSS T%d end%s srcAxis=%s destAxis=%s srcNormal=%s destNormal=%s "
+            "[wh-cross] CROSS T%d end%s "
                 + "pos (%.4f,%.4f,%.4f)->(%.4f,%.4f,%.4f) vel (%.4f,%.4f,%.4f)->(%.4f,%.4f,%.4f) "
                 + "|v| %.4f->%.4f yaw %.1f->%.1f forwardDotVel=%.4f",
-            crossTick, isEndA ? "A" : "B", src.getAxis(), dest.getAxis(), src.getNormal(), dest.getNormal(),
+            crossTick, isEndA ? "A" : "B",
             srcPos.x, srcPos.y, srcPos.z, destPos.x, destPos.y, destPos.z,
             srcVel.x, srcVel.y, srcVel.z, destVel.x, destVel.y, destVel.z,
             srcVel.length(), destVel.length(), srcYaw, destYaw, forwardDotVel));

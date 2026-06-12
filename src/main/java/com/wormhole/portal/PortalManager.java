@@ -5,12 +5,9 @@ import com.wormhole.Wormhole;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.datafix.DataFixTypes;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
@@ -60,9 +57,9 @@ public final class PortalManager extends SavedData {
     }
 
     /**
-     * Registers a newly detected end: links it to the oldest same-dimension pending pair, or
-     * starts a new pending pair. Returns the resulting pair, or null if the end overlaps an
-     * existing portal (e.g. the detector re-found an active frame).
+     * Registers a newly created mouth: links it to the oldest same-dimension pending pair, or
+     * starts a new pending pair. Returns the resulting pair, or null if the mouth overlaps an
+     * existing one.
      */
     public PortalPair addEnd(PortalEnd end) {
         for (PortalPair pair : this.pairs) {
@@ -85,47 +82,11 @@ public final class PortalManager extends SavedData {
         return pending;
     }
 
-    /** Result of destroying one end: {@code replacement == null} means the whole pair is gone. */
-    public record Mutation(UUID pairId, PortalPair replacement) {
-    }
-
-    /**
-     * Destroys the first end hit by a block change at {@code pos} ({@code asFrameBlock}: the
-     * changed block was part of the frame; otherwise: a block appeared in the interior).
-     * Returns null when nothing was hit. Callers loop until null, since separate frames can
-     * share a wall of diamond blocks.
-     */
-    public Mutation removeEndAt(ResourceKey<Level> dimension, BlockPos pos, boolean asFrameBlock) {
-        for (int i = 0; i < this.pairs.size(); i++) {
-            PortalPair pair = this.pairs.get(i);
-            boolean hitA = matches(pair.getA(), dimension, pos, asFrameBlock);
-            boolean hitB = pair.isLinked() && matches(pair.getB(), dimension, pos, asFrameBlock);
-            if (!hitA && !hitB) {
-                continue;
-            }
-            if (!pair.isLinked() || (hitA && hitB)) {
-                this.pairs.remove(i);
-                this.setDirty();
-                return new Mutation(pair.getId(), null);
-            }
-            PortalPair pending = pair.asPendingSurvivor(hitA ? pair.getB() : pair.getA());
-            this.pairs.set(i, pending);
-            this.setDirty();
-            return new Mutation(pair.getId(), pending);
-        }
-        return null;
-    }
-
     public boolean removeById(UUID id) {
         boolean removed = this.pairs.removeIf(pair -> pair.getId().equals(id));
         if (removed) {
             this.setDirty();
         }
         return removed;
-    }
-
-    private static boolean matches(PortalEnd end, ResourceKey<Level> dimension, BlockPos pos, boolean asFrameBlock) {
-        return end.getDimension().equals(dimension)
-            && (asFrameBlock ? end.isFrameBlock(pos) : end.interiorContains(pos));
     }
 }

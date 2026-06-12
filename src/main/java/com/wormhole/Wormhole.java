@@ -29,6 +29,13 @@ public class Wormhole implements ModInitializer {
     public static final String MOD_ID = "wormhole";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
+    /**
+     * Master switch for the teleport EFFECT. When false, entering a mouth is still detected
+     * (the crossing logic runs and logs) but the traveller is not actually moved — flip to true
+     * to restore real teleportation.
+     */
+    public static final boolean TELEPORT_ENABLED = false;
+
     @Override
     public void onInitialize() {
         LOGGER.info("Initializing {}", MOD_ID);

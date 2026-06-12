@@ -1,5 +1,6 @@
 package com.wormhole.server;
 
+import com.wormhole.Wormhole;
 import com.wormhole.portal.PortalEnd;
 import com.wormhole.portal.PortalManager;
 import com.wormhole.portal.PortalPair;
@@ -58,18 +59,14 @@ public final class ServerEntityCrossing {
             if (insideLastTick.contains(id) || crossedThisTick.contains(id)) {
                 continue;
             }
-            // One-way mouth: cross only entities approaching from the outer (active) side. The
-            // per-tick volume model tracks no prior position; approximate it as pos - velocity
-            // (position advances by velocity each tick), mirroring the client's segment-start test.
-            Vec3 prevPos = entity.position().subtract(entity.getDeltaMovement());
-            if (!pair.isActiveSideFor(source, prevPos)) {
-                continue;
-            }
             Vec3 destPos = pair.transformTeleportPosition(source, entity.position());
             Vec3 destVel = pair.transformVelocity(source, entity.getDeltaMovement());
             float destYaw = pair.transformYaw(source, entity.getYRot());
-            entity.teleportTo(level, destPos.x, destPos.y, destPos.z, Set.of(), destYaw, entity.getXRot(), false);
-            entity.setDeltaMovement(destVel);
+            // Entry is detected and bookkept; the actual move only happens when enabled.
+            if (Wormhole.TELEPORT_ENABLED) {
+                entity.teleportTo(level, destPos.x, destPos.y, destPos.z, Set.of(), destYaw, entity.getXRot(), false);
+                entity.setDeltaMovement(destVel);
+            }
             crossedThisTick.add(id);
         }
     }

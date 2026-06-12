@@ -64,6 +64,9 @@ public final class PortalCrossingHandler {
             destPos.x, destPos.y, destPos.z,
             clientPredictedDest.x, clientPredictedDest.y, clientPredictedDest.z, destMismatch));
 
+        if (!Wormhole.TELEPORT_ENABLED) {
+            return;
+        }
         // The client already predicted rotation + velocity correctly; mark them RELATIVE (with zero
         // delta) so the authoritative teleport only corrects absolute POSITION and does not overwrite
         // the client's velocity (which caused a momentary stop) or wrap its yaw.

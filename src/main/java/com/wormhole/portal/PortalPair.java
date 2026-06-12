@@ -67,41 +67,23 @@ public final class PortalPair {
         return source.equals(this.a) ? this.b : this.a;
     }
 
-    /** Tolerance below which the partner mouth counts as coplanar with this end's plane. */
-    private static final double COPLANAR_EPS = 1.0e-4;
-
     /**
-     * True if {@code observerPos} is on {@code source}'s ACTIVE (outer) side — the half-space
-     * facing away from the partner mouth. The inner side (facing the partner, i.e. the space
-     * between the two mouths) is inert: it neither renders the see-through view nor teleports, so
-     * each end behaves as a one-way wormhole mouth. Requires this pair to be linked.
-     *
-     * <p>The partner's center defines the inner side. If the partner is coplanar with this plane
-     * (a degenerate side-by-side layout, no well-defined inner side), the end stays active so it
-     * never silently vanishes.
+     * Maps a world position at {@code source} to the partner mouth. Mouths are orientation-less,
+     * so the transform is a pure translation between centers: an entity entering {@code source}'s
+     * sphere lands at the same offset inside the partner's sphere, moving the same way.
      */
-    public boolean isActiveSideFor(PortalEnd source, Vec3 observerPos) {
-        PortalEnd partner = linkFor(source);
-        Vec3 n = source.getNormal();
-        Vec3 c = source.getCenter();
-        double observerSide = n.dot(observerPos.subtract(c));
-        double partnerSide = n.dot(partner.getCenter().subtract(c));
-        if (Math.abs(partnerSide) < COPLANAR_EPS) {
-            return true;
-        }
-        return observerSide * partnerSide < 0.0;
-    }
-
     public Vec3 transformTeleportPosition(PortalEnd source, Vec3 pos) {
-        return PortalTransform.transformTeleportPoint(source, linkFor(source), pos);
+        return pos.subtract(source.getCenter()).add(linkFor(source).getCenter());
     }
 
+    /** Pure translation preserves velocity. */
     public Vec3 transformVelocity(PortalEnd source, Vec3 velocity) {
-        return PortalTransform.transformVector(source, linkFor(source), velocity);
+        return velocity;
     }
 
+    /** Orientation-less mouths do not rotate the traveller; facing is unchanged. */
     public float transformYaw(PortalEnd source, float yaw) {
-        return PortalTransform.transformYaw(source, linkFor(source), yaw);
+        return yaw;
     }
 
     public void write(FriendlyByteBuf buf) {

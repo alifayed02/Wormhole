@@ -3,17 +3,9 @@
   "minVersion": "0.8",
   "package": "com.wormhole.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [
-    "LevelChunkMixin"
-  ],
+  "mixins": [],
   "client": [
-    "client.CameraInvokerMixin",
     "client.ClientPacketListenerDebugMixin",
-    "client.GameRendererAccessorMixin",
-    "client.GameRendererBobMixin",
-    "client.LevelRendererAccessorMixin",
-    "client.LevelRendererDirtyMixin",
-    "client.MinecraftAccessorMixin",
     "client.MinecraftRenderTargetMixin",
     "client.stencil.GlBackendMixin",
     "client.stencil.GlConstMixin",
