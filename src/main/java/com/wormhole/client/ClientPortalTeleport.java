@@ -66,11 +66,14 @@ public final class ClientPortalTeleport {
 
         Vec3 from = lastFeet == null ? feet : lastFeet;
         for (PortalPair pair : pairs) {
-            if (pair.getA().crossesPlane(from, feet)) {
+            // One-way mouth: cross only when approaching from the outer (active) side. The segment
+            // start `from` is the approach side; entering from the inner side passes through the
+            // inert frame into real space without teleporting.
+            if (pair.getA().crossesPlane(from, feet) && pair.isActiveSideFor(pair.getA(), from)) {
                 performCrossing(player, pair, pair.getA(), true);
                 return;
             }
-            if (pair.getB().crossesPlane(from, feet)) {
+            if (pair.getB().crossesPlane(from, feet) && pair.isActiveSideFor(pair.getB(), from)) {
                 performCrossing(player, pair, pair.getB(), false);
                 return;
             }

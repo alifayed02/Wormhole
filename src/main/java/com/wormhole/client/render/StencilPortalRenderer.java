@@ -103,6 +103,13 @@ public final class StencilPortalRenderer {
         if (dist > 3.0 && toEnd.dot(look) < 0.0) {
             return;
         }
+        // One-way wormhole mouth: render the see-through view only from the outer (active) side.
+        // From the inner side (between the paired mouths) the frame is inert — the already-rendered
+        // world shows straight through the open frame, as if no portal existed.
+        if (!pair.isActiveSideFor(src, camPos)) {
+            logViewDiagnostics(pair, src, camPos, false);
+            return;
+        }
         PortalEnd dest = pair.linkFor(src);
 
         GL11.glEnable(GL11.GL_STENCIL_TEST);
