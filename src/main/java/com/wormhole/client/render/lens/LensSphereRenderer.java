@@ -18,6 +18,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat.Mode;
 import com.wormhole.Wormhole;
 import com.wormhole.client.ClientPortalStore;
+import com.wormhole.client.ClientPortalTeleport;
 import com.wormhole.client.render.capture.CubeCapture;
 import com.wormhole.portal.PortalEnd;
 import com.wormhole.portal.PortalPair;
@@ -89,8 +90,15 @@ public final class LensSphereRenderer {
             if (!CubeCapture.isReady(a) || !CubeCapture.isReady(b)) {
                 continue; // chunks still compiling — retry next frame
             }
-            drawSphere(pipeline, rt, a, b, cam, lut);
-            drawSphere(pipeline, rt, b, a, cam, lut);
+            // While crossing (suppressed), the camera is inside the destination bubble walking out;
+            // drawing that mouth's lens sphere would show it inside-out. Skip just that one.
+            boolean suppressed = ClientPortalTeleport.isSuppressed();
+            if (!(suppressed && a.containsPoint(cam))) {
+                drawSphere(pipeline, rt, a, b, cam, lut);
+            }
+            if (!(suppressed && b.containsPoint(cam))) {
+                drawSphere(pipeline, rt, b, a, cam, lut);
+            }
         }
     }
 
