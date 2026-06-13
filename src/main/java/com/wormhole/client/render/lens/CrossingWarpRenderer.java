@@ -43,7 +43,8 @@ public final class CrossingWarpRenderer {
     private static int errCount = 0;
     private static GpuBuffer basisBuffer;
     private static GpuBuffer lensParamsBuffer;
-    private static GpuBuffer warpParamsBuffer;
+    private static GpuBuffer warpThroughBuffer;
+    private static GpuBuffer warpAroundBuffer;
 
     private CrossingWarpRenderer() {
     }
@@ -94,7 +95,9 @@ public final class CrossingWarpRenderer {
             GpuBufferSlice basis = writeBasis();
             GpuBufferSlice lensParams = writeLensParams(
                 (float) (c.x - cam.x), (float) (c.y - cam.y), (float) (c.z - cam.z), rho);
-            GpuBufferSlice warpParams = writeWarpParams((float) CrossingState.intensity());
+            float intensity = (float) CrossingState.intensity();
+            GpuBufferSlice warpThrough = writeWarpParams(intensity, 0.0F, true);
+            GpuBufferSlice warpAround = writeWarpParams(intensity, 1.0F, false);
 
             MeshData mesh = buildScreenQuad(fwd, up, left, depth, sh, sv);
             if (mesh == null) {
@@ -118,16 +121,26 @@ public final class CrossingWarpRenderer {
                     pass.setUniform("DynamicTransforms", dynamicTransforms);
                     pass.setUniform("CubeBasis", basis);
                     pass.setUniform("LensParams", lensParams);
-                    pass.setUniform("CrossingParams", warpParams);
-                    for (int i = 0; i < 6; i++) {
-                        pass.bindTexture("Face" + i, faces[i].getColorTextureView(), sampler);
-                        pass.bindTexture("Src" + i, srcFaces[i].getColorTextureView(), sampler);
-                    }
-                    pass.bindTexture("DeflectionLut", lut, lutSampler);
-                    pass.bindTexture("AroundLut", aroundLut, lutSampler);
                     pass.setVertexBuffer(0, vertices);
                     pass.setIndexBuffer(indices, indexType);
-                    pass.drawIndexed(0, 0, mesh.drawState().indexCount(), 1);
+                    int idx = mesh.drawState().indexCount();
+
+                    // Draw 1: THROUGH branch — partner cube + DeflectionLut (7 samplers).
+                    pass.setUniform("CrossingParams", warpThrough);
+                    for (int i = 0; i < 6; i++) {
+                        pass.bindTexture("Cube" + i, faces[i].getColorTextureView(), sampler);
+                    }
+                    pass.bindTexture("Lut", lut, lutSampler);
+                    pass.drawIndexed(0, 0, idx, 1);
+
+                    // Draw 2: AROUND branch — source cube + AroundLut (7 samplers). Two draws keep
+                    // us under the GL texture-unit limit (one combined draw needs 14 samplers).
+                    pass.setUniform("CrossingParams", warpAround);
+                    for (int i = 0; i < 6; i++) {
+                        pass.bindTexture("Cube" + i, srcFaces[i].getColorTextureView(), sampler);
+                    }
+                    pass.bindTexture("Lut", aroundLut, lutSampler);
+                    pass.drawIndexed(0, 0, idx, 1);
                 }
             } finally {
                 mesh.close();
@@ -189,12 +202,17 @@ public final class CrossingWarpRenderer {
         return lensParamsBuffer.slice();
     }
 
-    private static GpuBufferSlice writeWarpParams(float intensity) {
+    private static GpuBufferSlice writeWarpParams(float intensity, float mode, boolean through) {
         ByteBuffer buf = ByteBuffer.allocateDirect(16).order(ByteOrder.nativeOrder());
-        buf.putFloat(intensity).putFloat(0.0F).putFloat(0.0F).putFloat(0.0F);
+        buf.putFloat(intensity).putFloat(mode).putFloat(0.0F).putFloat(0.0F);
         buf.flip();
-        warpParamsBuffer = RenderSystem.getDevice().createBuffer(() -> "wormhole_crossing_warp", 16, buf);
-        return warpParamsBuffer.slice();
+        GpuBuffer b = RenderSystem.getDevice().createBuffer(() -> "wormhole_crossing_warp", 16, buf);
+        if (through) {
+            warpThroughBuffer = b;
+        } else {
+            warpAroundBuffer = b;
+        }
+        return b.slice();
     }
 
     private static void closeBuffers() {
@@ -206,9 +224,13 @@ public final class CrossingWarpRenderer {
             lensParamsBuffer.close();
             lensParamsBuffer = null;
         }
-        if (warpParamsBuffer != null) {
-            warpParamsBuffer.close();
-            warpParamsBuffer = null;
+        if (warpThroughBuffer != null) {
+            warpThroughBuffer.close();
+            warpThroughBuffer = null;
+        }
+        if (warpAroundBuffer != null) {
+            warpAroundBuffer.close();
+            warpAroundBuffer = null;
         }
     }
 }
