@@ -20,6 +20,9 @@ import com.wormhole.Wormhole;
 import com.wormhole.client.ClientPortalStore;
 import com.wormhole.client.ClientPortalTeleport;
 import com.wormhole.client.render.capture.CubeCapture;
+import com.wormhole.client.render.remote.RemoteDimensions;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.LevelRenderer;
 import com.wormhole.portal.PortalEnd;
 import com.wormhole.portal.PortalPair;
 import java.nio.ByteBuffer;
@@ -97,11 +100,23 @@ public final class LensSphereRenderer {
     /** Capture one local mouth's through-view and draw it (unless the camera is inside it). */
     private static void drawMouth(RenderPipeline pipeline, RenderTarget rt, PortalPair pair,
                                   PortalEnd end, Vec3 cam, GpuTextureView lut) {
-        // Live, parallax-correct: capture the mouth's through-view (the PARTNER's surroundings) from
-        // the CAMERA's image on the partner side — transformTeleportPosition(end, cam) — so the
-        // geodesic sample tracks the eye and the crossing is seamless. Keyed by the mouth you look
-        // through; each mouth samples its OWN cube, so readiness is per-mouth.
-        CubeCapture.capture(end, pair.transformTeleportPosition(end, cam));
+        // Capture the mouth's through-view (the PARTNER's surroundings) from the CAMERA's image on the
+        // partner side — transformTeleportPosition(end, cam) — so the geodesic sample tracks the eye
+        // and the crossing is seamless. Keyed by the mouth you look through; each samples its OWN cube.
+        PortalEnd partner = pair.linkFor(end);
+        Vec3 eye = pair.transformTeleportPosition(end, cam);
+        if (partner.getDimension().equals(end.getDimension())) {
+            CubeCapture.capture(end, eye); // same-dimension: capture from mc.level
+        } else {
+            // Cross-dimensional: capture the partner dimension from its synthetic remote level.
+            ClientLevel remote = RemoteDimensions.getOrCreate(partner.getDimension());
+            LevelRenderer remoteRenderer = RemoteDimensions.rendererFor(partner.getDimension());
+            if (remote == null || remoteRenderer == null) {
+                return; // remote level not ready (Phase 3 will add a sky/fog fallback fill)
+            }
+            RemoteDimensions.spikeFeedFromCurrentLevel(partner.getDimension(), eye); // SPIKE: stand-in feed
+            CubeCapture.capture(end, eye, remote, remoteRenderer);
+        }
         if (!CubeCapture.isReady(end)) {
             return; // chunks still compiling — retry next frame
         }

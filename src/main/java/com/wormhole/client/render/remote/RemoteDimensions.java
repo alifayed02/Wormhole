@@ -136,6 +136,52 @@ public final class RemoteDimensions {
         }
     }
 
+    // ===== SPIKE (temporary; remove after the Phase 1.3 go/no-go gate) =====
+    private static final java.util.Set<Long> SPIKE_FED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * SPIKE stand-in for streamed remote data: feed the synthetic {@code dim} level from the CURRENT
+     * client level's chunks around {@code center}, once per chunk. Proves the synthetic-level render
+     * path before the real server streaming exists. (The geometry will be the local world's, shown
+     * through the cross-dim mouth — that's fine for the render-path proof.)
+     */
+    public static void spikeFeedFromCurrentLevel(ResourceKey<Level> dim, net.minecraft.world.phys.Vec3 center) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
+            return;
+        }
+        int ccx = (int) Math.floor(center.x) >> 4;
+        int ccz = (int) Math.floor(center.z) >> 4;
+        int radius = 2;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                int cx = ccx + dx;
+                int cz = ccz + dz;
+                long key = (((long) dim.identifier().hashCode()) << 42) ^ (((long) cx & 0x1FFFFF) << 21) ^ (cz & 0x1FFFFF);
+                if (!SPIKE_FED.add(key)) {
+                    continue;
+                }
+                if (!mc.level.getChunkSource().hasChunk(cx, cz)) {
+                    SPIKE_FED.remove(key); // retry once the chunk loads
+                    continue;
+                }
+                net.minecraft.world.level.chunk.LevelChunk chunk = mc.level.getChunk(cx, cz);
+                LevelChunkSection[] sections = chunk.getSections();
+                int minSec = mc.level.getMinSectionY();
+                LevelLightEngine le = mc.level.getLightEngine();
+                DataLayer[] sky = new DataLayer[sections.length];
+                DataLayer[] block = new DataLayer[sections.length];
+                for (int i = 0; i < sections.length; i++) {
+                    SectionPos sp = SectionPos.of(cx, minSec + i, cz);
+                    sky[i] = le.getLayerListener(LightLayer.SKY).getDataLayerData(sp);
+                    block[i] = le.getLayerListener(LightLayer.BLOCK).getDataLayerData(sp);
+                }
+                feedChunk(dim, cx, cz, sections, sky, block);
+            }
+        }
+    }
+    // ===== end SPIKE =====
+
     public static void dispose() {
         for (LevelRenderer r : RENDERERS.values()) {
             try {
