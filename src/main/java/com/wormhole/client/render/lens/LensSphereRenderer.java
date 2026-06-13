@@ -81,27 +81,35 @@ public final class LensSphereRenderer {
 
         Vec3 cam = mc.gameRenderer.getMainCamera().position();
         RenderTarget rt = mc.getMainRenderTarget();
+        var dim = mc.level.dimension();
         for (PortalPair pair : pairs) {
-            PortalEnd a = pair.getA();
-            PortalEnd b = pair.getB();
-            // Live, parallax-correct: capture each mouth's through-view (the PARTNER's surroundings)
-            // from the CAMERA's image on the partner side — transformTeleportPosition(end, cam) — so
-            // the geodesic sample tracks the eye and the crossing is seamless (Phase 1 captured from
-            // the fixed mouth centre, which caused the pop). Keyed by the mouth you look through.
-            CubeCapture.capture(a, pair.transformTeleportPosition(a, cam));
-            CubeCapture.capture(b, pair.transformTeleportPosition(b, cam));
-            if (!CubeCapture.isReady(a) || !CubeCapture.isReady(b)) {
-                continue; // chunks still compiling — retry next frame
+            // Draw only the end(s) in the current dimension: a same-dimension pair has both here, a
+            // cross-dimensional pair has exactly one (the partner lives in another world).
+            if (pair.getA().getDimension().equals(dim)) {
+                drawMouth(pipeline, rt, pair, pair.getA(), cam, lut);
             }
-            // While crossing (suppressed), the camera is inside the destination bubble walking out;
-            // drawing that mouth's lens sphere would show it inside-out. Skip just that one.
-            boolean suppressed = ClientPortalTeleport.isSuppressed();
-            if (!(suppressed && a.containsPoint(cam))) {
-                drawSphere(pipeline, rt, a, cam, lut);
+            if (pair.getB().getDimension().equals(dim)) {
+                drawMouth(pipeline, rt, pair, pair.getB(), cam, lut);
             }
-            if (!(suppressed && b.containsPoint(cam))) {
-                drawSphere(pipeline, rt, b, cam, lut);
-            }
+        }
+    }
+
+    /** Capture one local mouth's through-view and draw it (unless the camera is inside it). */
+    private static void drawMouth(RenderPipeline pipeline, RenderTarget rt, PortalPair pair,
+                                  PortalEnd end, Vec3 cam, GpuTextureView lut) {
+        // Live, parallax-correct: capture the mouth's through-view (the PARTNER's surroundings) from
+        // the CAMERA's image on the partner side — transformTeleportPosition(end, cam) — so the
+        // geodesic sample tracks the eye and the crossing is seamless. Keyed by the mouth you look
+        // through; each mouth samples its OWN cube, so readiness is per-mouth.
+        CubeCapture.capture(end, pair.transformTeleportPosition(end, cam));
+        if (!CubeCapture.isReady(end)) {
+            return; // chunks still compiling — retry next frame
+        }
+        // While crossing (suppressed), the camera is inside the destination bubble walking out;
+        // drawing that mouth's lens sphere would show it inside-out. Skip just that one.
+        boolean suppressed = ClientPortalTeleport.isSuppressed();
+        if (!(suppressed && end.containsPoint(cam))) {
+            drawSphere(pipeline, rt, end, cam, lut);
         }
     }
 

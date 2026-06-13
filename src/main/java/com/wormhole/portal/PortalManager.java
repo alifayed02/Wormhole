@@ -57,9 +57,9 @@ public final class PortalManager extends SavedData {
     }
 
     /**
-     * Registers a newly created mouth: links it to the oldest same-dimension pending pair, or
-     * starts a new pending pair. Returns the resulting pair, or null if the mouth overlaps an
-     * existing one.
+     * Registers a newly created mouth: links it to the oldest pending pair (in ANY dimension, so a
+     * pair may span dimensions), or starts a new pending pair. Returns the resulting pair, or null
+     * if the mouth overlaps an existing one.
      */
     public PortalPair addEnd(PortalEnd end) {
         for (PortalPair pair : this.pairs) {
@@ -69,7 +69,7 @@ public final class PortalManager extends SavedData {
         }
         for (int i = 0; i < this.pairs.size(); i++) {
             PortalPair pair = this.pairs.get(i);
-            if (!pair.isLinked() && pair.getA().getDimension().equals(end.getDimension())) {
+            if (!pair.isLinked()) {
                 PortalPair linked = pair.linkedWith(end);
                 this.pairs.set(i, linked);
                 this.setDirty();

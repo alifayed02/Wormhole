@@ -38,11 +38,18 @@ public final class ClientPortalStore {
         PAIRS.clear();
     }
 
-    /** Linked pairs whose ends are in the given dimension — the only ones teleport/render act on. */
+    /**
+     * Linked pairs with at least one end in the given dimension — the ones teleport/render act on.
+     * A cross-dimensional pair has exactly one local end here; a same-dimension pair has both.
+     * Callers guard each end by {@code end.getDimension().equals(dimension)} to act only on the
+     * local mouth(s).
+     */
     public static List<PortalPair> linkedPairsIn(ResourceKey<Level> dimension) {
         List<PortalPair> result = new ArrayList<>();
         for (PortalPair pair : PAIRS.values()) {
-            if (pair.isLinked() && pair.getA().getDimension().equals(dimension)) {
+            if (pair.isLinked()
+                && (pair.getA().getDimension().equals(dimension)
+                    || pair.getB().getDimension().equals(dimension))) {
                 result.add(pair);
             }
         }

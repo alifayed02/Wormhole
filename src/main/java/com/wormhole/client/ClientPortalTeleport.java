@@ -9,6 +9,8 @@ import java.util.List;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -49,7 +51,8 @@ public final class ClientPortalTeleport {
             return;
         }
         Vec3 feet = player.position();
-        List<PortalPair> pairs = ClientPortalStore.linkedPairsIn(mc.level.dimension());
+        ResourceKey<Level> dim = mc.level.dimension();
+        List<PortalPair> pairs = ClientPortalStore.linkedPairsIn(dim);
         if (pairs.isEmpty()) {
             justTeleported = false;
             lastFeet = null;
@@ -57,7 +60,7 @@ public final class ClientPortalTeleport {
         }
 
         WormholeDebug.tickSample(feet, player.getDeltaMovement(), player.getYRot(),
-            isInAnyMouth(feet, pairs), justTeleported);
+            isInAnyMouth(feet, pairs, dim), justTeleported);
 
         // Advance the segment: prev -> feet. Always track lastFeet, even while suppressed, so the
         // first post-suppression segment doesn't span the whole exit-walk.
@@ -65,7 +68,7 @@ public final class ClientPortalTeleport {
         lastFeet = feet;
 
         if (justTeleported) {
-            if (!isInAnyMouth(feet, pairs)) {
+            if (!isInAnyMouth(feet, pairs, dim)) {
                 justTeleported = false;
             }
             return;
@@ -74,12 +77,14 @@ public final class ClientPortalTeleport {
             return; // first sampled tick — no segment yet
         }
 
+        // Only the end in the player's current dimension is crossable here; a cross-dimensional
+        // pair's partner end lives in another world (different coordinate space).
         for (PortalPair pair : pairs) {
-            if (segmentCrossesCenter(prev, feet, pair.getA())) {
+            if (pair.getA().getDimension().equals(dim) && segmentCrossesCenter(prev, feet, pair.getA())) {
                 performCrossing(player, pair, pair.getA(), true);
                 return;
             }
-            if (segmentCrossesCenter(prev, feet, pair.getB())) {
+            if (pair.getB().getDimension().equals(dim) && segmentCrossesCenter(prev, feet, pair.getB())) {
                 performCrossing(player, pair, pair.getB(), false);
                 return;
             }
@@ -93,9 +98,12 @@ public final class ClientPortalTeleport {
             prev.x, prev.y, prev.z, feet.x, feet.y, feet.z, c.x, c.y, c.z, end.getRadius());
     }
 
-    private static boolean isInAnyMouth(Vec3 feet, List<PortalPair> pairs) {
+    private static boolean isInAnyMouth(Vec3 feet, List<PortalPair> pairs, ResourceKey<Level> dim) {
         for (PortalPair pair : pairs) {
-            if (pair.getA().containsPoint(feet) || pair.getB().containsPoint(feet)) {
+            if (pair.getA().getDimension().equals(dim) && pair.getA().containsPoint(feet)) {
+                return true;
+            }
+            if (pair.getB().getDimension().equals(dim) && pair.getB().containsPoint(feet)) {
                 return true;
             }
         }

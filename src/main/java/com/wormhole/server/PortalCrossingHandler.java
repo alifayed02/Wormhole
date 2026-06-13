@@ -7,6 +7,7 @@ import com.wormhole.portal.PortalPair;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.phys.Vec3;
@@ -35,9 +36,17 @@ public final class PortalCrossingHandler {
             debug("REJECT: unknown or unlinked pair " + pairId);
             return;
         }
+        // The client only triggers on the end in its current dimension, so fromEndA identifies the
+        // local (source) end; the partner is the destination, possibly in another dimension.
         PortalEnd src = fromEndA ? pair.getA() : pair.getB();
+        PortalEnd dest = fromEndA ? pair.getB() : pair.getA();
         if (!player.level().dimension().equals(src.getDimension())) {
             debug("REJECT: player not in portal dimension");
+            return;
+        }
+        ServerLevel destLevel = player.level().getServer().getLevel(dest.getDimension());
+        if (destLevel == null) {
+            debug("REJECT: destination dimension not loaded " + dest.getDimension().identifier());
             return;
         }
         Vec3 serverPos = player.position();
@@ -75,7 +84,7 @@ public final class PortalCrossingHandler {
         // delta) so the authoritative teleport only corrects absolute POSITION and does not overwrite
         // the client's velocity (which caused a momentary stop) or wrap its yaw.
         Set<Relative> relatives = Relative.union(Relative.ROTATION, Relative.DELTA);
-        player.teleportTo(player.level(), destPos.x, destPos.y, destPos.z, relatives, 0.0F, 0.0F, false);
+        player.teleportTo(destLevel, destPos.x, destPos.y, destPos.z, relatives, 0.0F, 0.0F, false);
         player.setDeltaMovement(destVel);
     }
 
