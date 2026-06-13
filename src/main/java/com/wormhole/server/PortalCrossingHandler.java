@@ -42,9 +42,13 @@ public final class PortalCrossingHandler {
         }
         Vec3 serverPos = player.position();
         double dist = serverPos.distanceTo(src.getCenter());
-        if (dist > MAX_VALIDATE_DISTANCE) {
+        // The client now crosses at the mouth CENTRE, so the server's (lagged) position can trail by
+        // up to ~the mouth radius on a fast crossing of a large mouth — scale the budget accordingly,
+        // never below the 8-block floor for small mouths.
+        double budget = Math.max(MAX_VALIDATE_DISTANCE, src.getRadius() + 4.0);
+        if (dist > budget) {
             debug(String.format(Locale.ROOT, "REJECT dist=%.2f>%.1f serverPos=%.1f,%.1f,%.1f",
-                dist, MAX_VALIDATE_DISTANCE, serverPos.x, serverPos.y, serverPos.z));
+                dist, budget, serverPos.x, serverPos.y, serverPos.z));
             return;
         }
         Vec3 destPos = pair.transformTeleportPosition(src, serverPos);
