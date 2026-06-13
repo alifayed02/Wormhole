@@ -42,6 +42,17 @@ import net.minecraft.world.level.lighting.LevelLightEngine;
 public final class RemoteDimensions {
     private static final Map<ResourceKey<Level>, ClientLevel> LEVELS = new ConcurrentHashMap<>();
     private static final Map<ResourceKey<Level>, LevelRenderer> RENDERERS = new ConcurrentHashMap<>();
+    /** The dimension the player is currently IN (the real mc.level) — vanilla owns its chunks; we
+     *  never feed it as a remote level. */
+    private static volatile ResourceKey<Level> liveDim;
+
+    public static void setLiveDimension(ResourceKey<Level> dim) {
+        liveDim = dim;
+    }
+
+    public static boolean isLive(ResourceKey<Level> dim) {
+        return dim != null && dim.equals(liveDim);
+    }
 
     private RemoteDimensions() {
     }
@@ -76,8 +87,12 @@ public final class RemoteDimensions {
             Holder<DimensionType> dimType = mc.level.registryAccess()
                 .lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(dimTypeKey(dim));
             ClientLevelData data = new ClientLevelData(Difficulty.NORMAL, false, false);
+            // Size the chunk cache to the real render distance (not a small fixed 8) so the mouth view
+            // is complete AND, after this level is promoted to live, the server's chunk stream around
+            // the player is accepted instead of rejected as "not in view range".
+            int viewRadius = Math.max(2, mc.options.getEffectiveRenderDistance());
             ClientLevel level = new ClientLevel(mc.getConnection(), data, dim, dimType,
-                8, 8, renderer, false, 0L, mc.level.getSeaLevel());
+                viewRadius, viewRadius, renderer, false, 0L, mc.level.getSeaLevel());
             ((LevelRendererAccessorMixin) renderer).wormhole$setLevelRenderState(new LevelRenderState());
             renderer.setLevel(level);
             renderer.onResourceManagerReload(mc.getResourceManager());
@@ -107,6 +122,9 @@ public final class RemoteDimensions {
      */
     public static void feedChunk(ResourceKey<Level> dim, int cx, int cz,
                                  LevelChunkSection[] sections, DataLayer[] sky, DataLayer[] block) {
+        if (isLive(dim)) {
+            return; // the dimension the player is in is the real level — vanilla owns its chunks
+        }
         ClientLevel level = getOrCreate(dim);
         LevelRenderer renderer = RENDERERS.get(dim);
         if (level == null || renderer == null) {
@@ -175,6 +193,17 @@ public final class RemoteDimensions {
         }
         Wormhole.LOGGER.info("[crossdim] promoted remote level {} to live", dim.identifier());
         return new Promotion(level, renderer);
+    }
+
+    /**
+     * Cache the level + renderer being LEFT (give the renderer a fresh render state) so re-crossing
+     * re-promotes it. Kept warm by continued streaming while it's the partner side.
+     */
+    public static void demote(ResourceKey<Level> dim, ClientLevel level, LevelRenderer renderer) {
+        ((LevelRendererAccessorMixin) renderer).wormhole$setLevelRenderState(new LevelRenderState());
+        LEVELS.put(dim, level);
+        RENDERERS.put(dim, renderer);
+        Wormhole.LOGGER.info("[crossdim] demoted (cached) left level {}", dim.identifier());
     }
 
     public static void dispose() {

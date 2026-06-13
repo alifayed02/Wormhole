@@ -51,6 +51,11 @@ public class WormholeClient implements ClientModInitializer {
             }
             // Snapshot the on-screen scene first so the around-pass can warp those pixels (it samples
             // this copy at displaced coordinates) while still writing the lens into the main buffer.
+            // The dimension the player is in is the real level — mark it live so the streamer never
+            // feeds it (vanilla owns its chunks) and the swap can tell which side is live.
+            if (Minecraft.getInstance().level != null) {
+                RemoteDimensions.setLiveDimension(Minecraft.getInstance().level.dimension());
+            }
             SceneCopy.capture(Minecraft.getInstance().getMainRenderTarget());
             LensSphereRenderer.render();  // the window through each mouth (also captures partner cubes)
             AroundRenderer.render();      // the surroundings bending around each mouth

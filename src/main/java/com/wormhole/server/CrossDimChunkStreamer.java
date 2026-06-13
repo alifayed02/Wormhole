@@ -33,10 +33,10 @@ import net.minecraft.world.phys.Vec3;
  * {@code PortalChunkTracker}. Wire format matches {@code RemoteChunkStore}.
  */
 public final class CrossDimChunkStreamer {
-    private static final int RADIUS = 5;              // chunks around the destination mouth
-    private static final double NEAR_BLOCKS = 128.0;  // stream a pair only when its local end is this near a player
+    private static final int RADIUS = 8;              // chunks around the destination mouth (full-ish view)
+    private static final double NEAR_BLOCKS = 160.0;  // stream a pair only when its local end is this near a player
     private static final int SCAN_INTERVAL = 20;      // ticks between scans
-    private static final int SEND_BUDGET = 8;         // chunks force-loaded + sent per player per scan
+    private static final int SEND_BUDGET = 16;        // chunks force-loaded + sent per player per scan (fill fast)
 
     private static int cooldown = 0;
     private static final Map<UUID, Set<Long>> SENT = new HashMap<>();

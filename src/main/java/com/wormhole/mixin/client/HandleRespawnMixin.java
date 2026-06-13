@@ -73,10 +73,16 @@ public abstract class HandleRespawnMixin {
         if (wormhole$seamless && p != null) {
             wormhole$pending = null;
             wormhole$promoted = true;
+            LevelRenderer oldRenderer = mc.levelRenderer;
+            ClientLevel oldLevel = mc.level;
             ((MinecraftAccessorMixin) mc).wormhole$setLevelRenderer(p.renderer());
             ((MinecraftAccessorMixin) mc).wormhole$setLevel(level);
             mc.particleEngine.setLevel(level);
             mc.gameRenderer.setLevel(level);
+            // Cache the level we just left so the return trip re-promotes it (seamless both ways).
+            if (oldRenderer != null && oldLevel != null && oldRenderer != p.renderer()) {
+                RemoteDimensions.demote(oldLevel.dimension(), oldLevel, oldRenderer);
+            }
             Wormhole.LOGGER.info("[crossdim] installed promoted level {} as live", level.dimension().identifier());
         } else {
             mc.setLevel(level);
