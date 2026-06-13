@@ -1,6 +1,7 @@
 package com.wormhole.client;
 
 import com.wormhole.client.render.PortalRenderTypes;
+import com.wormhole.client.render.capture.CameraCube;
 import com.wormhole.client.render.capture.CubeCapture;
 import com.wormhole.client.render.capture.WorldCapture;
 import com.wormhole.client.render.lens.AroundRenderer;
@@ -57,12 +58,16 @@ public class WormholeClient implements ClientModInitializer {
             SceneCopy.capture(Minecraft.getInstance().getMainRenderTarget());
             LensSphereRenderer.render();  // the window through each mouth (also captures partner cubes)
             AroundRenderer.render();      // the surroundings bending around each mouth
+            if (CrossingState.active()) { // own-universe source cube for the warp's around-branch
+                CameraCube.capture(Minecraft.getInstance().gameRenderer.getMainCamera().position());
+            }
             CrossingWarpRenderer.render(); // full-screen geodesic warp, crossfaded near a crossing
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             ClientPortalStore.clear();
             CubeCapture.dispose();
+            CameraCube.dispose();
             SceneCopy.dispose();
             WorldCapture.dispose();
             RemoteChunkStore.clear();

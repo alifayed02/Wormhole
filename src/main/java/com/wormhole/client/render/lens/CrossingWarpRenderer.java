@@ -17,6 +17,7 @@ import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat.Mode;
 import com.wormhole.Wormhole;
+import com.wormhole.client.render.capture.CameraCube;
 import com.wormhole.client.render.capture.CubeCapture;
 import com.wormhole.portal.PortalEnd;
 import java.nio.ByteBuffer;
@@ -64,6 +65,11 @@ public final class CrossingWarpRenderer {
         TextureTarget[] faces = CubeCapture.faces(mouth);
         if (faces == null || !CubeCapture.isReady(mouth)) {
             return; // partner cube not captured yet this session
+        }
+        GpuTextureView aroundLut = AroundDeflectionLut.view();
+        TextureTarget[] srcFaces = CameraCube.faces();
+        if (aroundLut == null || srcFaces == null || !CameraCube.isReady()) {
+            return; // source cube not captured yet this frame
         }
 
         Camera camera = mc.gameRenderer.getMainCamera();
@@ -115,8 +121,10 @@ public final class CrossingWarpRenderer {
                     pass.setUniform("CrossingParams", warpParams);
                     for (int i = 0; i < 6; i++) {
                         pass.bindTexture("Face" + i, faces[i].getColorTextureView(), sampler);
+                        pass.bindTexture("Src" + i, srcFaces[i].getColorTextureView(), sampler);
                     }
                     pass.bindTexture("DeflectionLut", lut, lutSampler);
+                    pass.bindTexture("AroundLut", aroundLut, lutSampler);
                     pass.setVertexBuffer(0, vertices);
                     pass.setIndexBuffer(indices, indexType);
                     pass.drawIndexed(0, 0, mesh.drawState().indexCount(), 1);
