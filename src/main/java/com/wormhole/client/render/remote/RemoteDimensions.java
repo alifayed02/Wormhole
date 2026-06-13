@@ -142,6 +142,41 @@ public final class RemoteDimensions {
         }
     }
 
+    /** A level + its dedicated renderer handed out to become the live mc.level / mc.levelRenderer. */
+    public record Promotion(ClientLevel level, LevelRenderer renderer) {
+    }
+
+    /**
+     * Hand out the cached level + renderer for {@code dim} to become live, re-pointing the renderer at
+     * the shared {@link LevelRenderState} and wiping mirrored entities (the respawn re-adds the real
+     * player). Returns null if {@code dim} isn't cached (caller falls back to vanilla). Ports
+     * SeamlessPortals' {@code promoteToMain}.
+     */
+    public static Promotion promote(ResourceKey<Level> dim, LevelRenderState shared) {
+        ClientLevel level = LEVELS.remove(dim);
+        LevelRenderer renderer = RENDERERS.remove(dim);
+        if (level == null || renderer == null) {
+            return null;
+        }
+        ((LevelRendererAccessorMixin) renderer).wormhole$setLevelRenderState(shared);
+        net.minecraft.client.player.LocalPlayer self = Minecraft.getInstance().player;
+        java.util.List<Integer> ids = new java.util.ArrayList<>();
+        for (net.minecraft.world.entity.Entity e : level.entitiesForRendering()) {
+            if (e != self) {
+                ids.add(e.getId());
+            }
+        }
+        for (int id : ids) {
+            try {
+                level.removeEntity(id, net.minecraft.world.entity.Entity.RemovalReason.DISCARDED);
+            } catch (Exception ignored) {
+                // best effort
+            }
+        }
+        Wormhole.LOGGER.info("[crossdim] promoted remote level {} to live", dim.identifier());
+        return new Promotion(level, renderer);
+    }
+
     public static void dispose() {
         for (LevelRenderer r : RENDERERS.values()) {
             try {

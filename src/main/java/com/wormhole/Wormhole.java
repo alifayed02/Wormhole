@@ -44,6 +44,9 @@ public class Wormhole implements ModInitializer {
      */
     public static final boolean ENTITY_TELEPORT_ENABLED = false;
 
+    /** Client-first seamless cross-dimensional swap (promote the streamed remote level on arrival). */
+    public static final boolean SEAMLESS_CROSSDIM = true;
+
     @Override
     public void onInitialize() {
         LOGGER.info("Initializing {}", MOD_ID);

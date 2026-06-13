@@ -9,6 +9,7 @@
     "client.ClientPacketListenerDebugMixin",
     "client.CrossDimScreenMixin",
     "client.GameRendererAccessorMixin",
+    "client.HandleRespawnMixin",
     "client.LevelRendererAccessorMixin",
     "client.MinecraftAccessorMixin",
     "client.MinecraftRenderTargetMixin",

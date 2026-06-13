@@ -126,22 +126,28 @@ public final class ClientPortalTeleport {
         float destYaw = pair.transformYaw(src, srcYaw);
         float destPitch = player.getXRot();
 
+        boolean crossDim = !pair.linkFor(src).getDimension().equals(src.getDimension());
         // Entry is always detected; the actual move (and the server report) only happen when the
         // teleport effect is enabled. Suppression is set either way so a single entry fires once.
         if (Wormhole.TELEPORT_ENABLED) {
-            player.setPos(destPos.x, destPos.y, destPos.z);
-            player.setDeltaMovement(destVel);
-            player.setYRot(destYaw);
-            player.setXRot(destPitch);
-            // Carries the client's source position + predicted destination so the server can log
-            // how far its own (possibly stale-position) computation diverges — see [wh-srv].
+            if (!crossDim) {
+                // Same dimension: client-predict the move for seamlessness.
+                player.setPos(destPos.x, destPos.y, destPos.z);
+                player.setDeltaMovement(destVel);
+                player.setYRot(destYaw);
+                player.setXRot(destPitch);
+            }
+            // Cross-dim: do NOT setPos locally — setPos can't change dimension, so it would land the
+            // player at destination coords in the WRONG (source) level → blank. The server teleports
+            // to the destination ServerLevel and the respawn swap (HandleRespawnMixin) moves the
+            // client. Carries srcPos + predicted dest for the server's divergence log ([wh-srv]).
             ClientPlayNetworking.send(new ClientCrossedPayload(pair.getId(), isEndA, srcPos, destPos));
         }
         justTeleported = true;
         lastFeet = destPos;
         // Cross-dimensional crossing → the server will swap the client's dimension (a respawn packet);
         // suppress the vanilla loading screen for a short window so the transition stays seamless.
-        if (!pair.linkFor(src).getDimension().equals(src.getDimension())) {
+        if (crossDim) {
             dimScreenSuppressTicks = 60;
         }
 
