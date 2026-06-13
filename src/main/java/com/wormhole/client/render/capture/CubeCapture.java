@@ -20,7 +20,7 @@ import org.joml.Vector3f;
  * orientations), so it's stored once.
  */
 public final class CubeCapture {
-    public static final int FACE_SIZE = 512;
+    public static final int FACE_SIZE = 2048;
     private static final float[] FACE_YAW = {-90.0F, 90.0F, 0.0F, 0.0F, 0.0F, 180.0F};
     private static final float[] FACE_PITCH = {0.0F, 0.0F, -90.0F, 90.0F, 0.0F, 0.0F};
 
