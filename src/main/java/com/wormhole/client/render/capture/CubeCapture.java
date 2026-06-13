@@ -2,6 +2,8 @@ package com.wormhole.client.render.capture;
 
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.wormhole.Wormhole;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.LevelRenderer;
 import com.wormhole.portal.PortalEnd;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,6 +60,15 @@ public final class CubeCapture {
      * sample is parallax-correct). Marks the mouth ready once every face has succeeded.
      */
     public static void capture(PortalEnd end, Vec3 fromPos) {
+        capture(end, fromPos, null, null);
+    }
+
+    /**
+     * As {@link #capture(PortalEnd, Vec3)}, but renders the faces from a caller-supplied remote
+     * {@link ClientLevel} + dedicated {@link LevelRenderer} (cross-dimensional through-view). When
+     * {@code level}/{@code renderer} are null, renders the current {@code mc.level} (same-dimension).
+     */
+    public static void capture(PortalEnd end, Vec3 fromPos, ClientLevel level, LevelRenderer renderer) {
         TextureTarget[] targets = MOUTHS.computeIfAbsent(end, k -> {
             TextureTarget[] t = new TextureTarget[6];
             for (int i = 0; i < 6; i++) {
@@ -68,7 +79,9 @@ public final class CubeCapture {
         Vec3 c = fromPos;
         boolean allOk = true;
         for (int i = 0; i < 6; i++) {
-            boolean ok = WorldCapture.capture(c, FACE_YAW[i], FACE_PITCH[i], 90.0F, targets[i]);
+            boolean ok = (level != null && renderer != null)
+                ? WorldCapture.captureLevel(level, renderer, c, FACE_YAW[i], FACE_PITCH[i], 90.0F, targets[i])
+                : WorldCapture.capture(c, FACE_YAW[i], FACE_PITCH[i], 90.0F, targets[i]);
             if (ok) {
                 if (fwd[i] == null) {
                     fwd[i] = new Vector3f();

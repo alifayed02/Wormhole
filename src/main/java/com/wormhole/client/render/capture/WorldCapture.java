@@ -179,6 +179,33 @@ public final class WorldCapture {
         }
     }
 
+    /**
+     * Like {@link #capture}, but renders a caller-supplied {@link ClientLevel} via a caller-supplied
+     * dedicated {@link LevelRenderer} (e.g. a remote dimension from {@code RemoteDimensions}) instead
+     * of {@code mc.level} + the shared capture renderer. Used for cross-dimensional mouth views.
+     */
+    public static boolean captureLevel(ClientLevel level, LevelRenderer renderer, Vec3 camPos,
+                                       float yaw, float pitch, float fovDeg, TextureTarget target) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || level == null || renderer == null) {
+            return false;
+        }
+        if (captureDepth > 0) {
+            return false;
+        }
+        captureDepth++;
+        try {
+            return doCapture(mc, renderer, level, camPos, yaw, pitch, fovDeg, target);
+        } catch (Exception e) {
+            if (errorLogCount++ < 5) {
+                Wormhole.LOGGER.error("[wh-cap] remote-level capture failed", e);
+            }
+            return false;
+        } finally {
+            captureDepth--;
+        }
+    }
+
     private static String fmt(double v) {
         return String.format(java.util.Locale.ROOT, "%.2f", v);
     }
