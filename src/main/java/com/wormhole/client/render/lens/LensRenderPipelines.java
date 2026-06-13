@@ -24,7 +24,6 @@ import net.minecraft.resources.Identifier;
 public final class LensRenderPipelines {
     private static RenderPipeline spherePipeline;
     private static RenderPipeline aroundPipeline;
-    private static RenderPipeline crossingPipeline;
 
     private LensRenderPipelines() {
     }
@@ -35,10 +34,6 @@ public final class LensRenderPipelines {
 
     public static RenderPipeline around() {
         return aroundPipeline;
-    }
-
-    public static RenderPipeline crossing() {
-        return crossingPipeline;
     }
 
     /** Forces the static initializer to run (and log) early. */
@@ -89,32 +84,7 @@ public final class LensRenderPipelines {
                 .withCull(false)
                 .build();
             aroundPipeline = (RenderPipeline) register.invoke(null, aroundP);
-
-            // Full-screen crossing warp: a screen-filling quad running the geodesic per pixel,
-            // crossfaded over the frame by intensity. NO depth test (overlay), TRANSLUCENT blend.
-            RenderPipeline crossingP = RenderPipeline.builder(new Snippet[0])
-                .withLocation("wormhole/pipeline/lens_crossing")
-                .withVertexShader(Identifier.fromNamespaceAndPath("wormhole", "core/wormhole_crossing"))
-                .withFragmentShader(Identifier.fromNamespaceAndPath("wormhole", "core/wormhole_crossing"))
-                .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-                .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-                .withUniform("CubeBasis", UniformType.UNIFORM_BUFFER)
-                .withUniform("LensParams", UniformType.UNIFORM_BUFFER)
-                .withUniform("CrossingParams", UniformType.UNIFORM_BUFFER)
-                .withSampler("Cube0")
-                .withSampler("Cube1")
-                .withSampler("Cube2")
-                .withSampler("Cube3")
-                .withSampler("Cube4")
-                .withSampler("Cube5")
-                .withSampler("Lut")
-                .withVertexFormat(DefaultVertexFormat.POSITION, Mode.QUADS)
-                .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
-                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-                .withCull(false)
-                .build();
-            crossingPipeline = (RenderPipeline) register.invoke(null, crossingP);
-            Wormhole.LOGGER.info("[lens] sphere + around + crossing pipelines registered");
+            Wormhole.LOGGER.info("[lens] sphere + around pipelines registered");
         } catch (Exception e) {
             Wormhole.LOGGER.error("[lens] failed to create lens pipelines", e);
         }

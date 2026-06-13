@@ -54,15 +54,6 @@ public final class CubeCapture {
         return up[i];
     }
 
-    /** Per-face yaw/pitch (shared with {@link CameraCube}; the 6 face orientations are identical). */
-    public static float faceYaw(int i) {
-        return FACE_YAW[i];
-    }
-
-    public static float facePitch(int i) {
-        return FACE_PITCH[i];
-    }
-
     /**
      * Attempt to capture all 6 faces of the through-view for {@code end} from {@code fromPos} — the
      * point the through-view is seen from (the camera's image on the partner side, so the geodesic

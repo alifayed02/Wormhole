@@ -1,0 +1,8 @@
+amends "elide:project.pkl"
+
+name = "wormhole"
+version = "1.0.0"
+
+jvm {
+  target = 25
+}
