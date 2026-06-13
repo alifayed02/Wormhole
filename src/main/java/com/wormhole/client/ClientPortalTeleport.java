@@ -2,7 +2,6 @@ package com.wormhole.client;
 
 import com.wormhole.Wormhole;
 import com.wormhole.net.WormholePayloads.ClientCrossedPayload;
-import com.wormhole.portal.MouthCrossing;
 import com.wormhole.portal.PortalEnd;
 import com.wormhole.portal.PortalPair;
 import java.util.List;
@@ -88,25 +87,20 @@ public final class ClientPortalTeleport {
             return; // first sampled tick — no segment yet
         }
 
-        // Only the end in the player's current dimension is crossable here; a cross-dimensional
-        // pair's partner end lives in another world (different coordinate space).
+        // Surface trigger: teleport the instant the feet contact a local mouth's sphere. The
+        // full-screen crossing warp is now the transition, so we no longer wait for the throat
+        // centre. Only the end in the player's current dimension is crossable (cross-dim partner
+        // lives in another world).
         for (PortalPair pair : pairs) {
-            if (pair.getA().getDimension().equals(dim) && segmentCrossesCenter(prev, feet, pair.getA())) {
+            if (pair.getA().getDimension().equals(dim) && pair.getA().containsPoint(feet)) {
                 performCrossing(player, pair, pair.getA(), true);
                 return;
             }
-            if (pair.getB().getDimension().equals(dim) && segmentCrossesCenter(prev, feet, pair.getB())) {
+            if (pair.getB().getDimension().equals(dim) && pair.getB().containsPoint(feet)) {
                 performCrossing(player, pair, pair.getB(), false);
                 return;
             }
         }
-    }
-
-    /** True if the feet segment {@code prev -> feet} passes through this mouth's throat centre. */
-    private static boolean segmentCrossesCenter(Vec3 prev, Vec3 feet, PortalEnd end) {
-        Vec3 c = end.getCenter();
-        return MouthCrossing.segmentCrossesCenter(
-            prev.x, prev.y, prev.z, feet.x, feet.y, feet.z, c.x, c.y, c.z, end.getRadius());
     }
 
     private static boolean isInAnyMouth(Vec3 feet, List<PortalPair> pairs, ResourceKey<Level> dim) {
