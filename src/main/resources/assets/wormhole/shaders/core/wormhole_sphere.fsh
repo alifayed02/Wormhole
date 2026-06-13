@@ -7,7 +7,6 @@ uniform sampler2D Face3;
 uniform sampler2D Face4;
 uniform sampler2D Face5;
 uniform sampler2D DeflectionLut;  // baked DnegLensModel.trace: emergent azimuth phi(alpha, d)
-uniform sampler2D WindowTex;      // parallax-correct destination window (screen-aligned)
 
 const float TWO_PI = 6.28318530718;
 const float D_MAX = 24.0;          // must match DeflectionLut.D_MAX
@@ -23,10 +22,6 @@ layout(std140) uniform CubeBasis {
 
 layout(std140) uniform LensParams {
     vec4 Center;    // xyz = camera-relative mouth centre, w = radius
-};
-
-layout(std140) uniform WindowParams {
-    vec4 Window;    // x = screen width, y = screen height, z = active (1/0), w = unused
 };
 
 in vec3 vDir;
@@ -71,16 +66,6 @@ void main() {
     else if (best == 3) col = texture(Face3, uv).rgb;
     else if (best == 4) col = texture(Face4, uv).rgb;
     else col = texture(Face5, uv).rgb;
-
-    // Seamless centre: blend the parallax-correct live window over the cubemap, weighted toward the
-    // undistorted axis (clean window) and away at the lensed rim (cubemap / Einstein ring). On-axis
-    // alphaRatio -> 0 so the window dominates; near the silhouette it -> 1 so the cubemap dominates.
-    if (Window.z > 0.5) {
-        float winWeight = 1.0 - smoothstep(0.35, 0.85, alphaRatio);
-        vec2 winUv = gl_FragCoord.xy / Window.xy;
-        vec3 winCol = texture(WindowTex, winUv).rgb;
-        col = mix(col, winCol, winWeight);
-    }
 
     // Einstein-ring glow at the silhouette (where phi diverges and images pile up).
     float fres = pow(clamp(alphaRatio, 0.0, 1.0), FRESNEL_POW);

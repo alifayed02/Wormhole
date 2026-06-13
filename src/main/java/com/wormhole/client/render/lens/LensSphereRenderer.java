@@ -51,7 +51,6 @@ public final class LensSphereRenderer {
 
     private static GpuBuffer basisBuffer;
     private static GpuBuffer lensParamsBuffer;
-    private static GpuBuffer windowParamsBuffer;
 
     private LensSphereRenderer() {
     }
@@ -79,38 +78,36 @@ public final class LensSphereRenderer {
             active.add(pair.getB());
         }
         CubeCapture.retainOnly(active);
-        PortalWindowRenderer.retainOnly(active);
 
         Vec3 cam = mc.gameRenderer.getMainCamera().position();
         RenderTarget rt = mc.getMainRenderTarget();
         for (PortalPair pair : pairs) {
             PortalEnd a = pair.getA();
             PortalEnd b = pair.getB();
-            // Live: re-render both mouths' cubemaps from scratch this frame (outside any render pass).
-            CubeCapture.capture(a);
-            CubeCapture.capture(b);
+            // Live, parallax-correct: capture each mouth's through-view (the PARTNER's surroundings)
+            // from the CAMERA's image on the partner side — transformTeleportPosition(end, cam) — so
+            // the geodesic sample tracks the eye and the crossing is seamless (Phase 1 captured from
+            // the fixed mouth centre, which caused the pop). Keyed by the mouth you look through.
+            CubeCapture.capture(a, pair.transformTeleportPosition(a, cam));
+            CubeCapture.capture(b, pair.transformTeleportPosition(b, cam));
             if (!CubeCapture.isReady(a) || !CubeCapture.isReady(b)) {
                 continue; // chunks still compiling — retry next frame
             }
-            // Parallax-correct destination windows for the seamless centre. Keyed by the sphere they
-            // show in: target(a) is b's world (the view through a), rendered outside any render pass.
-            PortalWindowRenderer.render(pair, a, b);
-            PortalWindowRenderer.render(pair, b, a);
             // While crossing (suppressed), the camera is inside the destination bubble walking out;
             // drawing that mouth's lens sphere would show it inside-out. Skip just that one.
             boolean suppressed = ClientPortalTeleport.isSuppressed();
             if (!(suppressed && a.containsPoint(cam))) {
-                drawSphere(pipeline, rt, a, b, cam, lut, PortalWindowRenderer.target(a));
+                drawSphere(pipeline, rt, a, cam, lut);
             }
             if (!(suppressed && b.containsPoint(cam))) {
-                drawSphere(pipeline, rt, b, a, cam, lut, PortalWindowRenderer.target(b));
+                drawSphere(pipeline, rt, b, cam, lut);
             }
         }
     }
 
     private static void drawSphere(RenderPipeline pipeline, RenderTarget rt, PortalEnd end,
-                                   PortalEnd partner, Vec3 cam, GpuTextureView lut, TextureTarget window) {
-        TextureTarget[] faces = CubeCapture.faces(partner);
+                                   Vec3 cam, GpuTextureView lut) {
+        TextureTarget[] faces = CubeCapture.faces(end);
         if (faces == null) {
             return;
         }
@@ -127,7 +124,6 @@ public final class LensSphereRenderer {
             GpuBufferSlice basis = writeBasis();
             GpuBufferSlice lensParams = writeLensParams(
                 (float) (c.x - cam.x), (float) (c.y - cam.y), (float) (c.z - cam.z), r);
-            GpuBufferSlice windowParams = writeWindowParams(rt.width, rt.height, window != null);
 
             MeshData mesh = buildUnitSphere();
             if (mesh == null) {
@@ -151,16 +147,10 @@ public final class LensSphereRenderer {
                     pass.setUniform("DynamicTransforms", dynamicTransforms);
                     pass.setUniform("CubeBasis", basis);
                     pass.setUniform("LensParams", lensParams);
-                    pass.setUniform("WindowParams", windowParams);
                     for (int i = 0; i < 6; i++) {
                         pass.bindTexture("Face" + i, faces[i].getColorTextureView(), sampler);
                     }
                     pass.bindTexture("DeflectionLut", lut, lutSampler);
-                    // Window: parallax-correct destination view (or a harmless dummy when absent;
-                    // the shader ignores it unless WindowParams.active is set).
-                    GpuTextureView windowView = (window != null)
-                        ? window.getColorTextureView() : faces[0].getColorTextureView();
-                    pass.bindTexture("WindowTex", windowView, sampler);
                     pass.setVertexBuffer(0, vertices);
                     pass.setIndexBuffer(indices, indexType);
                     pass.drawIndexed(0, 0, mesh.drawState().indexCount(), 1);
@@ -174,10 +164,6 @@ public final class LensSphereRenderer {
                 if (lensParamsBuffer != null) {
                     lensParamsBuffer.close();
                     lensParamsBuffer = null;
-                }
-                if (windowParamsBuffer != null) {
-                    windowParamsBuffer.close();
-                    windowParamsBuffer = null;
                 }
             }
         } catch (Exception e) {
@@ -217,15 +203,6 @@ public final class LensSphereRenderer {
         buf.flip();
         lensParamsBuffer = RenderSystem.getDevice().createBuffer(() -> "wormhole_lens_params", 16, buf);
         return lensParamsBuffer.slice();
-    }
-
-    /** std140 block: vec4 Window (x=screenW, y=screenH, z=active(1/0), w=unused). */
-    private static GpuBufferSlice writeWindowParams(int width, int height, boolean active) {
-        ByteBuffer buf = ByteBuffer.allocateDirect(16).order(ByteOrder.nativeOrder());
-        buf.putFloat(width).putFloat(height).putFloat(active ? 1.0F : 0.0F).putFloat(0.0F);
-        buf.flip();
-        windowParamsBuffer = RenderSystem.getDevice().createBuffer(() -> "wormhole_window_params", 16, buf);
-        return windowParamsBuffer.slice();
     }
 
     /** A unit sphere as POSITION quads; vertex positions are unit outward directions. */

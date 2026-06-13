@@ -52,8 +52,12 @@ public final class CubeCapture {
         return up[i];
     }
 
-    /** Attempt to capture all 6 faces for a mouth. Marks it ready once every face has succeeded. */
-    public static void capture(PortalEnd end) {
+    /**
+     * Attempt to capture all 6 faces of the through-view for {@code end} from {@code fromPos} — the
+     * point the through-view is seen from (the camera's image on the partner side, so the geodesic
+     * sample is parallax-correct). Marks the mouth ready once every face has succeeded.
+     */
+    public static void capture(PortalEnd end, Vec3 fromPos) {
         TextureTarget[] targets = MOUTHS.computeIfAbsent(end, k -> {
             TextureTarget[] t = new TextureTarget[6];
             for (int i = 0; i < 6; i++) {
@@ -61,7 +65,7 @@ public final class CubeCapture {
             }
             return t;
         });
-        Vec3 c = end.getCenter();
+        Vec3 c = fromPos;
         boolean allOk = true;
         for (int i = 0; i < 6; i++) {
             boolean ok = WorldCapture.capture(c, FACE_YAW[i], FACE_PITCH[i], 90.0F, targets[i]);

@@ -6,7 +6,6 @@ import com.wormhole.client.render.capture.WorldCapture;
 import com.wormhole.client.render.lens.AroundRenderer;
 import com.wormhole.client.render.lens.LensRenderPipelines;
 import com.wormhole.client.render.lens.LensSphereRenderer;
-import com.wormhole.client.render.lens.PortalWindowRenderer;
 import com.wormhole.client.render.lens.SceneCopy;
 import net.minecraft.client.Minecraft;
 import com.wormhole.net.WormholePayloads.RemovePairPayload;
@@ -50,7 +49,6 @@ public class WormholeClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             ClientPortalStore.clear();
             CubeCapture.dispose();
-            PortalWindowRenderer.dispose();
             SceneCopy.dispose();
             WorldCapture.dispose();
         });

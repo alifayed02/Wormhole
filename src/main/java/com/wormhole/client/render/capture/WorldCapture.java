@@ -164,11 +164,7 @@ public final class WorldCapture {
         }
         captureDepth++;
         try {
-            float aspect = (float) target.width / (float) target.height;
-            float far = Math.max(mc.options.getEffectiveRenderDistance(), 2) * 16.0F * 4.0F;
-            Matrix4f proj = new Matrix4f().setPerspective(
-                (float) Math.toRadians(fovDeg), aspect, 0.05F, far, RenderSystem.getDevice().isZZeroToOne());
-            boolean ok = doCapture(mc, renderer, mc.level, camPos, yaw, pitch, proj, null, null, target);
+            boolean ok = doCapture(mc, renderer, mc.level, camPos, yaw, pitch, fovDeg, target);
             if (VERBOSE) {
                 Wormhole.LOGGER.info("[wh-cap] capture EXIT ok={}", ok);
             }
@@ -183,45 +179,12 @@ public final class WorldCapture {
         }
     }
 
-    /**
-     * Renders the world from {@code camPos} looking at {@code (yaw, pitch)} using the caller-supplied
-     * {@code projMatrix}, with an optional Lengyel oblique near-clip at the plane through
-     * {@code clipCenter} (normal {@code clipNormal}). Used for the seamless portal window (parallax-
-     * correct destination view). Returns true if a frame was drawn.
-     */
-    public static boolean captureWithProjection(Vec3 camPos, float yaw, float pitch, Matrix4f projMatrix,
-                                                Vec3 clipCenter, Vec3 clipNormal, TextureTarget target) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null) {
-            return false;
-        }
-        if (captureDepth > 0) {
-            return false;
-        }
-        LevelRenderer renderer = getOrCreate(mc);
-        if (renderer == null) {
-            return false;
-        }
-        captureDepth++;
-        try {
-            return doCapture(mc, renderer, mc.level, camPos, yaw, pitch, projMatrix, clipCenter, clipNormal, target);
-        } catch (Exception e) {
-            if (errorLogCount++ < 5) {
-                Wormhole.LOGGER.error("[wh-cap] window capture failed", e);
-            }
-            return false;
-        } finally {
-            captureDepth--;
-        }
-    }
-
     private static String fmt(double v) {
         return String.format(java.util.Locale.ROOT, "%.2f", v);
     }
 
     private static boolean doCapture(Minecraft mc, LevelRenderer renderer, ClientLevel level,
-                                     Vec3 camPos, float yaw, float pitch, Matrix4f projMatrix,
-                                     Vec3 clipCenter, Vec3 clipNormal, TextureTarget target) {
+                                     Vec3 camPos, float yaw, float pitch, float fovDeg, TextureTarget target) {
         DeltaTracker deltaTracker = mc.getDeltaTracker();
         float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
 
@@ -241,11 +204,11 @@ public final class WorldCapture {
         lastUp.set(u.x(), u.y(), u.z());
         lastRight.set(-l.x(), -l.y(), -l.z());
 
-        // Oblique near-clip (optional): tilt the supplied projection's near plane onto the
-        // destination mouth so near-side geometry is culled (seamless portal window).
-        if (clipCenter != null && clipNormal != null) {
-            applyObliqueNearPlane(projMatrix, virtualCamera, camPos, clipCenter, clipNormal);
-        }
+        // Square perspective projection (aspect from the target; cube faces are 1:1).
+        float aspect = (float) target.width / (float) target.height;
+        float far = Math.max(mc.options.getEffectiveRenderDistance(), 2) * 16.0F * 4.0F;
+        Matrix4f projMatrix = new Matrix4f().setPerspective(
+            (float) Math.toRadians(fovDeg), aspect, 0.05F, far, RenderSystem.getDevice().isZZeroToOne());
 
         Matrix4f viewMatrix = new Matrix4f();
         virtualCamera.getViewRotationMatrix(viewMatrix);
@@ -256,7 +219,8 @@ public final class WorldCapture {
         if (VERBOSE) {
             double yr = Math.toRadians(yaw);
             double pr = Math.toRadians(pitch);
-            Wormhole.LOGGER.info("[wh-cap] camera look=({}, {}, {})",
+            Wormhole.LOGGER.info("[wh-cap] projection fov={} aspect={} near=0.05 far={} | camera look=({}, {}, {})",
+                fovDeg, fmt(aspect), fmt(far),
                 fmt(-Math.sin(yr) * Math.cos(pr)), fmt(-Math.sin(pr)), fmt(Math.cos(yr) * Math.cos(pr)));
         }
         Frustum frustum = new Frustum(viewMatrix, projMatrix);
@@ -404,55 +368,6 @@ public final class WorldCapture {
             mcAccess.wormhole$setLevelRenderer(savedRenderer);
             ((MinecraftRenderTargetMixin) (Object) mc).wormhole$setMainRenderTarget(savedMainRT);
         }
-    }
-
-    /**
-     * Lengyel's oblique near-plane clipping: rewrites {@code projMatrix}'s third row in place so the
-     * near plane coincides with the plane through {@code portalCenter} with normal {@code portalNormal}
-     * — geometry on the camera's side of that plane is culled. Returns true if applied. Revived from
-     * the validated pre-sphere portal renderer (git 44cc2f2).
-     */
-    private static boolean applyObliqueNearPlane(Matrix4f projMatrix, Camera camera, Vec3 cameraPos,
-                                                 Vec3 portalCenter, Vec3 portalNormal) {
-        Matrix4f viewRot = new Matrix4f();
-        camera.getViewRotationMatrix(viewRot);
-        float nx = (float) portalNormal.x;
-        float ny = (float) portalNormal.y;
-        float nz = (float) portalNormal.z;
-        double cameraDot = nx * (cameraPos.x - portalCenter.x)
-            + ny * (cameraPos.y - portalCenter.y)
-            + nz * (cameraPos.z - portalCenter.z);
-        if (cameraDot > 0.0) {
-            nx = -nx;
-            ny = -ny;
-            nz = -nz;
-        }
-        float vnx = viewRot.m00() * nx + viewRot.m10() * ny + viewRot.m20() * nz;
-        float vny = viewRot.m01() * nx + viewRot.m11() * ny + viewRot.m21() * nz;
-        float vnz = viewRot.m02() * nx + viewRot.m12() * ny + viewRot.m22() * nz;
-        float vd = nx * (float) (cameraPos.x - portalCenter.x)
-            + ny * (float) (cameraPos.y - portalCenter.y)
-            + nz * (float) (cameraPos.z - portalCenter.z);
-        float qx = (Math.signum(vnx) + projMatrix.m20()) / projMatrix.m00();
-        float qy = (Math.signum(vny) + projMatrix.m21()) / projMatrix.m11();
-        float qz = -1.0F;
-        float qw = (1.0F + projMatrix.m22()) / projMatrix.m32();
-        float dotCQ = vnx * qx + vny * qy + vnz * qz + vd * qw;
-        if (Math.abs(dotCQ) < 1.0E-4F) {
-            return false;
-        }
-        float scale = 2.0F / dotCQ;
-        float newM22 = vnz * scale + 1.0F;
-        float newM32 = vd * scale;
-        if (Math.abs(newM32) > 50.0F || Math.abs(newM22) > 50.0F
-            || Float.isNaN(newM32) || Float.isInfinite(newM32)) {
-            return false;
-        }
-        projMatrix.m02(vnx * scale);
-        projMatrix.m12(vny * scale);
-        projMatrix.m22(newM22);
-        projMatrix.m32(newM32);
-        return true;
     }
 
     private static void freeTransientBuffers() {
