@@ -33,6 +33,9 @@ public final class ClientPortalTeleport {
     private static boolean justTeleported;
     /** Previous tick's feet position; null = no segment to test yet (just connected / teleported). */
     private static Vec3 lastFeet;
+    /** >0 for a short window after a cross-dimensional crossing — suppresses the vanilla dimension
+     *  loading screen so the wormhole transition stays seamless (see the ClientPacketListener mixin). */
+    private static int dimScreenSuppressTicks;
 
     private ClientPortalTeleport() {
     }
@@ -42,8 +45,16 @@ public final class ClientPortalTeleport {
         return justTeleported;
     }
 
+    /** True briefly after a cross-dim crossing: skip the vanilla dimension-change loading screen. */
+    public static boolean suppressDimensionScreen() {
+        return dimScreenSuppressTicks > 0;
+    }
+
     /** Driven from {@code ClientTickEvents.START_CLIENT_TICK}. */
     public static void onClientTick(Minecraft mc) {
+        if (dimScreenSuppressTicks > 0) {
+            dimScreenSuppressTicks--;
+        }
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
             justTeleported = false;
@@ -132,6 +143,11 @@ public final class ClientPortalTeleport {
         }
         justTeleported = true;
         lastFeet = destPos;
+        // Cross-dimensional crossing → the server will swap the client's dimension (a respawn packet);
+        // suppress the vanilla loading screen for a short window so the transition stays seamless.
+        if (!pair.linkFor(src).getDimension().equals(src.getDimension())) {
+            dimScreenSuppressTicks = 60;
+        }
 
         WormholeDebug.crossing(src, pair.linkFor(src), isEndA,
             srcPos, destPos, srcVel, destVel, srcYaw, destYaw);
