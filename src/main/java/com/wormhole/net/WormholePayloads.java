@@ -26,6 +26,59 @@ public final class WormholePayloads {
         PayloadTypeRegistry.clientboundPlay().register(UpsertPairPayload.TYPE, UpsertPairPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RemovePairPayload.TYPE, RemovePairPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ClientCrossedPayload.TYPE, ClientCrossedPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RemoteChunkPayload.TYPE, RemoteChunkPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RemoteChunkUnloadPayload.TYPE, RemoteChunkUnloadPayload.CODEC);
+    }
+
+    /** Server -> client: one chunk's serialized sections + light for a remote (cross-dim) view. */
+    public record RemoteChunkPayload(String dimId, int chunkX, int chunkZ, byte[] data)
+        implements CustomPacketPayload {
+        public static final Type<RemoteChunkPayload> TYPE =
+            new Type<>(Identifier.fromNamespaceAndPath(Wormhole.MOD_ID, "remote_chunk"));
+
+        public static final StreamCodec<FriendlyByteBuf, RemoteChunkPayload> CODEC =
+            CustomPacketPayload.codec(RemoteChunkPayload::write, RemoteChunkPayload::new);
+
+        private RemoteChunkPayload(FriendlyByteBuf buf) {
+            this(buf.readUtf(), buf.readInt(), buf.readInt(), buf.readByteArray());
+        }
+
+        private void write(FriendlyByteBuf buf) {
+            buf.writeUtf(this.dimId);
+            buf.writeInt(this.chunkX);
+            buf.writeInt(this.chunkZ);
+            buf.writeByteArray(this.data);
+        }
+
+        @Override
+        public Type<RemoteChunkPayload> type() {
+            return TYPE;
+        }
+    }
+
+    /** Server -> client: a remote chunk left range and should be dropped. */
+    public record RemoteChunkUnloadPayload(String dimId, int chunkX, int chunkZ)
+        implements CustomPacketPayload {
+        public static final Type<RemoteChunkUnloadPayload> TYPE =
+            new Type<>(Identifier.fromNamespaceAndPath(Wormhole.MOD_ID, "remote_chunk_unload"));
+
+        public static final StreamCodec<FriendlyByteBuf, RemoteChunkUnloadPayload> CODEC =
+            CustomPacketPayload.codec(RemoteChunkUnloadPayload::write, RemoteChunkUnloadPayload::new);
+
+        private RemoteChunkUnloadPayload(FriendlyByteBuf buf) {
+            this(buf.readUtf(), buf.readInt(), buf.readInt());
+        }
+
+        private void write(FriendlyByteBuf buf) {
+            buf.writeUtf(this.dimId);
+            buf.writeInt(this.chunkX);
+            buf.writeInt(this.chunkZ);
+        }
+
+        @Override
+        public Type<RemoteChunkUnloadPayload> type() {
+            return TYPE;
+        }
     }
 
     /** Full state: the entire pair list (sent on join). */

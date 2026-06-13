@@ -112,9 +112,8 @@ public final class LensSphereRenderer {
             ClientLevel remote = RemoteDimensions.getOrCreate(partner.getDimension());
             LevelRenderer remoteRenderer = RemoteDimensions.rendererFor(partner.getDimension());
             if (remote == null || remoteRenderer == null) {
-                return; // remote level not ready (Phase 3 will add a sky/fog fallback fill)
+                return; // remote level not ready yet (chunks still streaming)
             }
-            RemoteDimensions.spikeFeedFromCurrentLevel(partner.getDimension(), eye); // SPIKE: stand-in feed
             CubeCapture.capture(end, eye, remote, remoteRenderer);
         }
         if (!CubeCapture.isReady(end)) {

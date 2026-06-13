@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Client-side mirror of the server's portal registry. Only ever touched on the client main
@@ -54,5 +55,21 @@ public final class ClientPortalStore {
             }
         }
         return result;
+    }
+
+    /** Centre of a linked end located in {@code dimension} (used to centre the remote chunk cache), or null. */
+    public static Vec3 remoteCenterFor(ResourceKey<Level> dimension) {
+        for (PortalPair pair : PAIRS.values()) {
+            if (!pair.isLinked()) {
+                continue;
+            }
+            if (pair.getA().getDimension().equals(dimension)) {
+                return pair.getA().getCenter();
+            }
+            if (pair.getB().getDimension().equals(dimension)) {
+                return pair.getB().getCenter();
+            }
+        }
+        return null;
     }
 }

@@ -6,6 +6,7 @@ import com.wormhole.net.WormholePayloads.ClientCrossedPayload;
 import com.wormhole.net.WormholePayloads.RemovePairPayload;
 import com.wormhole.net.WormholePayloads.SyncPairsPayload;
 import com.wormhole.net.WormholePayloads.UpsertPairPayload;
+import com.wormhole.server.CrossDimChunkStreamer;
 import com.wormhole.server.PortalCrossingHandler;
 import com.wormhole.server.ServerEntityCrossing;
 import com.wormhole.portal.PortalManager;
@@ -58,6 +59,9 @@ public class Wormhole implements ModInitializer {
                     payload.clientSrcPos(), payload.clientPredictedDest())));
 
         ServerTickEvents.END_SERVER_TICK.register(ServerEntityCrossing::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(CrossDimChunkStreamer::onServerTick);
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+            CrossDimChunkStreamer.onPlayerDisconnect(handler.player.getUUID()));
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) ->
             WormholeCommand.register(dispatcher));

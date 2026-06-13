@@ -7,7 +7,11 @@ import com.wormhole.client.render.lens.AroundRenderer;
 import com.wormhole.client.render.lens.LensRenderPipelines;
 import com.wormhole.client.render.lens.LensSphereRenderer;
 import com.wormhole.client.render.lens.SceneCopy;
+import com.wormhole.client.render.remote.RemoteChunkStore;
+import com.wormhole.client.render.remote.RemoteDimensions;
 import net.minecraft.client.Minecraft;
+import com.wormhole.net.WormholePayloads.RemoteChunkPayload;
+import com.wormhole.net.WormholePayloads.RemoteChunkUnloadPayload;
 import com.wormhole.net.WormholePayloads.RemovePairPayload;
 import com.wormhole.net.WormholePayloads.SyncPairsPayload;
 import com.wormhole.net.WormholePayloads.UpsertPairPayload;
@@ -28,6 +32,12 @@ public class WormholeClient implements ClientModInitializer {
             context.client().execute(() -> ClientPortalStore.upsert(payload.pair())));
         ClientPlayNetworking.registerGlobalReceiver(RemovePairPayload.TYPE, (payload, context) ->
             context.client().execute(() -> ClientPortalStore.remove(payload.pairId())));
+        ClientPlayNetworking.registerGlobalReceiver(RemoteChunkPayload.TYPE, (payload, context) ->
+            context.client().execute(() ->
+                RemoteChunkStore.handleChunkData(payload.dimId(), payload.chunkX(), payload.chunkZ(), payload.data())));
+        ClientPlayNetworking.registerGlobalReceiver(RemoteChunkUnloadPayload.TYPE, (payload, context) ->
+            context.client().execute(() ->
+                RemoteChunkStore.handleChunkUnload(payload.dimId(), payload.chunkX(), payload.chunkZ())));
 
         PortalRenderTypes.init();
         LensRenderPipelines.init();
@@ -51,8 +61,12 @@ public class WormholeClient implements ClientModInitializer {
             CubeCapture.dispose();
             SceneCopy.dispose();
             WorldCapture.dispose();
+            RemoteChunkStore.clear();
+            RemoteDimensions.dispose();
         });
 
         ClientTickEvents.START_CLIENT_TICK.register(ClientPortalTeleport::onClientTick);
+        // Budget-drain streamed remote chunks into their synthetic levels for cross-dim views.
+        ClientTickEvents.END_CLIENT_TICK.register(client -> RemoteChunkStore.drainPending());
     }
 }
