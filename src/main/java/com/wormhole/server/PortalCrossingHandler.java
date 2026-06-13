@@ -60,7 +60,9 @@ public final class PortalCrossingHandler {
                 dist, budget, serverPos.x, serverPos.y, serverPos.z));
             return;
         }
-        Vec3 destPos = pair.transformTeleportPosition(src, serverPos);
+        // Emerge outside the destination mouth along the look direction (pop out the far side) — must
+        // match the client prediction (ClientPortalTeleport). Look/yaw is synced, so both sides agree.
+        Vec3 destPos = pair.exitPosition(src, player.getViewVector(1.0F));
         Vec3 destVel = pair.transformVelocity(src, player.getDeltaMovement());
 
         // Bounce instrumentation: posLag = how stale the server's player position is relative to

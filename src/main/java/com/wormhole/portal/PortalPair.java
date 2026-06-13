@@ -76,6 +76,23 @@ public final class PortalPair {
         return pos.subtract(source.getCenter()).add(linkFor(source).getCenter());
     }
 
+    /** Clearance past the destination sphere surface so the player emerges fully outside it. */
+    public static final double EXIT_CLEARANCE = 1.5;
+
+    /**
+     * Player landing for a crossing: emerge just OUTSIDE the destination mouth along {@code exitDir}
+     * (the player's look/travel direction), so the player pops out the far side facing into the
+     * destination world with the mouth behind them — the faithful instant-throat traversal (you do
+     * not linger inside the sphere). The rendering through-view still uses
+     * {@link #transformTeleportPosition} (pure translation); this is only the traveller's landing.
+     */
+    public Vec3 exitPosition(PortalEnd source, Vec3 exitDir) {
+        PortalEnd dest = linkFor(source);
+        double len = exitDir.length();
+        Vec3 dir = len > 1.0e-4 ? exitDir.scale(1.0 / len) : new Vec3(0.0, 0.0, 1.0);
+        return dest.getCenter().add(dir.scale(dest.getRadius() + EXIT_CLEARANCE));
+    }
+
     /** Pure translation preserves velocity. */
     public Vec3 transformVelocity(PortalEnd source, Vec3 velocity) {
         return velocity;

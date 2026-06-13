@@ -119,7 +119,9 @@ public final class ClientPortalTeleport {
         Vec3 srcPos = player.position();
         Vec3 srcVel = player.getDeltaMovement();
         float srcYaw = player.getYRot();
-        Vec3 destPos = pair.transformTeleportPosition(src, srcPos);
+        // Emerge OUTSIDE the destination mouth along the look/travel direction (pop out the far side),
+        // not at the same offset inside it — so you face the destination world, mouth behind you.
+        Vec3 destPos = pair.exitPosition(src, player.getViewVector(1.0F));
         Vec3 destVel = pair.transformVelocity(src, srcVel);
         float destYaw = pair.transformYaw(src, srcYaw);
         float destPitch = player.getXRot();
