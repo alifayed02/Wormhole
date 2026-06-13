@@ -12,6 +12,10 @@ elide.lock.v2.bin
 .minecraft/
 downloads/
 
+# Local-only docs (planning notes + reference material, not shipped)
+docs/references/
+docs/superpowers/
+
 # Runtime game state (a deployed dev instance lives in this dir)
 mods/
 logs/
