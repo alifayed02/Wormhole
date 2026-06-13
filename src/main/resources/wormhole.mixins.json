@@ -11,6 +11,7 @@
     "client.GameRendererAccessorMixin",
     "client.HandleRespawnMixin",
     "client.LevelRendererAccessorMixin",
+    "client.LightmapExtractorAccessorMixin",
     "client.MinecraftAccessorMixin",
     "client.MinecraftRenderTargetMixin",
     "client.stencil.GlBackendMixin",

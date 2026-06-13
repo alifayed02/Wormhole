@@ -12,6 +12,7 @@ import com.wormhole.Wormhole;
 import com.wormhole.mixin.client.CameraInvokerMixin;
 import com.wormhole.mixin.client.GameRendererAccessorMixin;
 import com.wormhole.mixin.client.LevelRendererAccessorMixin;
+import com.wormhole.mixin.client.LightmapExtractorAccessorMixin;
 import com.wormhole.mixin.client.MinecraftAccessorMixin;
 import com.wormhole.mixin.client.MinecraftRenderTargetMixin;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -65,6 +66,10 @@ public final class WorldCapture {
 
     /** >0 while a nested capture render is in flight; used to detect/block re-entrancy. */
     private static int captureDepth = 0;
+
+    /** True when a cross-dim capture recomputed the lightmap for a remote dimension this frame, so it
+     *  must be restored to the player's dimension before the hand/HUD render. */
+    private static volatile boolean lightmapDirty = false;
 
     /** Basis of the most recent capture's virtual camera (world space), for cubemap face mapping. */
     private static final org.joml.Vector3f lastForward = new org.joml.Vector3f();
@@ -164,7 +169,7 @@ public final class WorldCapture {
         }
         captureDepth++;
         try {
-            boolean ok = doCapture(mc, renderer, mc.level, camPos, yaw, pitch, fovDeg, target);
+            boolean ok = doCapture(mc, renderer, mc.level, camPos, yaw, pitch, fovDeg, target, false);
             if (VERBOSE) {
                 Wormhole.LOGGER.info("[wh-cap] capture EXIT ok={}", ok);
             }
@@ -195,7 +200,7 @@ public final class WorldCapture {
         }
         captureDepth++;
         try {
-            return doCapture(mc, renderer, level, camPos, yaw, pitch, fovDeg, target);
+            return doCapture(mc, renderer, level, camPos, yaw, pitch, fovDeg, target, true);
         } catch (Exception e) {
             if (errorLogCount++ < 5) {
                 Wormhole.LOGGER.error("[wh-cap] remote-level capture failed", e);
@@ -211,7 +216,8 @@ public final class WorldCapture {
     }
 
     private static boolean doCapture(Minecraft mc, LevelRenderer renderer, ClientLevel level,
-                                     Vec3 camPos, float yaw, float pitch, float fovDeg, TextureTarget target) {
+                                     Vec3 camPos, float yaw, float pitch, float fovDeg, TextureTarget target,
+                                     boolean refreshLightmap) {
         DeltaTracker deltaTracker = mc.getDeltaTracker();
         float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
 
@@ -342,6 +348,13 @@ public final class WorldCapture {
                             target.width, target.height,
                             grs.optionsRenderState.glintStrength, level.getGameTime(), deltaTracker,
                             grs.optionsRenderState.menuBackgroundBlurriness, camPos, false);
+                        // Recompute the lightmap for THIS capture's environment: the virtual camera is
+                        // the active main camera here, and its attribute probe was ticked in the remote
+                        // level, so re-extracting yields the remote dimension's sky/ambient light curve
+                        // (else e.g. the overworld through a nether mouth is lit dark by the nether's).
+                        if (refreshLightmap) {
+                            refreshLightmap(mc, grs, partialTick);
+                        }
                         renderer.update(virtualCamera);
                         renderer.renderLevel(
                             GraphicsResourceAllocator.UNPOOLED, deltaTracker, false, camState,
@@ -395,6 +408,37 @@ public final class WorldCapture {
             mcAccess.wormhole$setLevelRenderer(savedRenderer);
             ((MinecraftRenderTargetMixin) (Object) mc).wormhole$setMainRenderTarget(savedMainRT);
         }
+    }
+
+    /** Force the lightmap to recompute for the currently-active (virtual) camera + render it. */
+    private static void refreshLightmap(Minecraft mc, GameRenderState grs, float partialTick) {
+        GameRendererAccessorMixin acc = (GameRendererAccessorMixin) mc.gameRenderer;
+        ((LightmapExtractorAccessorMixin) (Object) acc.wormhole$getLightmapExtractor()).wormhole$setNeedsUpdate(true);
+        acc.wormhole$getLightmapExtractor().extract(grs.lightmapRenderState, partialTick);
+        acc.wormhole$getLightmap().render(grs.lightmapRenderState);
+        lightmapDirty = true;
+    }
+
+    /**
+     * After cross-dim captures left the lightmap on a remote dimension, recompute it for the player's
+     * real camera so the hand/HUD aren't lit by the wrong dimension. No-op if no cross-dim capture
+     * happened this frame. Call once per frame after the mouth captures.
+     */
+    public static void restoreLightmap() {
+        if (!lightmapDirty) {
+            return;
+        }
+        lightmapDirty = false;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gameRenderer == null) {
+            return;
+        }
+        GameRenderState grs = mc.gameRenderer.getGameRenderState();
+        float pt = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        GameRendererAccessorMixin acc = (GameRendererAccessorMixin) mc.gameRenderer;
+        ((LightmapExtractorAccessorMixin) (Object) acc.wormhole$getLightmapExtractor()).wormhole$setNeedsUpdate(true);
+        acc.wormhole$getLightmapExtractor().extract(grs.lightmapRenderState, pt);
+        acc.wormhole$getLightmap().render(grs.lightmapRenderState);
     }
 
     private static void freeTransientBuffers() {

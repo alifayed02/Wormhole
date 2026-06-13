@@ -59,6 +59,9 @@ public class WormholeClient implements ClientModInitializer {
             SceneCopy.capture(Minecraft.getInstance().getMainRenderTarget());
             LensSphereRenderer.render();  // the window through each mouth (also captures partner cubes)
             AroundRenderer.render();      // the surroundings bending around each mouth
+            // A cross-dim capture recomputes the lightmap for the remote dimension; restore it to the
+            // player's dimension so the hand/HUD aren't lit wrong (no-op if no cross-dim capture).
+            WorldCapture.restoreLightmap();
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
