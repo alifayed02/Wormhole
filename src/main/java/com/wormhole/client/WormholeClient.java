@@ -4,6 +4,8 @@ import com.wormhole.client.render.PortalRenderTypes;
 import com.wormhole.client.render.capture.CubeCapture;
 import com.wormhole.client.render.capture.WorldCapture;
 import com.wormhole.client.render.lens.AroundRenderer;
+import com.wormhole.client.render.lens.CrossingState;
+import com.wormhole.client.render.lens.CrossingWarpRenderer;
 import com.wormhole.client.render.lens.LensRenderPipelines;
 import com.wormhole.client.render.lens.LensSphereRenderer;
 import com.wormhole.client.render.lens.SceneCopy;
@@ -51,9 +53,11 @@ public class WormholeClient implements ClientModInitializer {
             }
             // Snapshot the on-screen scene first so the around-pass can warp those pixels (it samples
             // this copy at displaced coordinates) while still writing the lens into the main buffer.
+            CrossingState.update();       // nearest-mouth proximity intensity for the crossing warp
             SceneCopy.capture(Minecraft.getInstance().getMainRenderTarget());
-            LensSphereRenderer.render();  // the window through each mouth
+            LensSphereRenderer.render();  // the window through each mouth (also captures partner cubes)
             AroundRenderer.render();      // the surroundings bending around each mouth
+            CrossingWarpRenderer.render(); // full-screen geodesic warp, crossfaded near a crossing
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
