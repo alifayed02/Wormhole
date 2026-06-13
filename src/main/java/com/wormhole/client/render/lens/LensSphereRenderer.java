@@ -81,6 +81,18 @@ public final class LensSphereRenderer {
 
         Vec3 cam = mc.gameRenderer.getMainCamera().position();
         RenderTarget rt = mc.getMainRenderTarget();
+
+        // TEMP DEBUG (remove in Task 3): render + blit the first mouth's window fullscreen to verify
+        // the parallax-correct destination view + oblique clip before the shader blend exists.
+        if (Wormhole.DEBUG_WINDOW_BLIT && !pairs.isEmpty()) {
+            PortalPair p0 = pairs.get(0);
+            if (PortalWindowRenderer.render(p0, p0.getA(), p0.getB())) {
+                TextureTarget wt = PortalWindowRenderer.target(p0.getA());
+                if (wt != null) {
+                    wt.blitToScreen();
+                }
+            }
+        }
         for (PortalPair pair : pairs) {
             PortalEnd a = pair.getA();
             PortalEnd b = pair.getB();

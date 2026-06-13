@@ -43,6 +43,9 @@ public class Wormhole implements ModInitializer {
      */
     public static final boolean ENTITY_TELEPORT_ENABLED = false;
 
+    /** TEMP (Phase 2 Task 2): blit the portal window fullscreen to verify the parallax window. */
+    public static final boolean DEBUG_WINDOW_BLIT = true;
+
     @Override
     public void onInitialize() {
         LOGGER.info("Initializing {}", MOD_ID);
